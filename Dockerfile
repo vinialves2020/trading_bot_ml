@@ -1,5 +1,7 @@
-# Atualizado para suportar as versoes modernas do pandas-ta
 FROM python:3.12-slim
+
+# Desliga o buffer do Python para os logs aparecerem em tempo real no Docker
+ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -7,7 +9,6 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Mantemos a instalacao do Torch CPU para poupar RAM na AWS
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 COPY requirements.txt .
