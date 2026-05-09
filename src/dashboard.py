@@ -7,10 +7,15 @@ import os
 # Configuração da página
 st.set_page_config(page_title="Oráculo BTC | Dashboard", layout="wide")
 st.title("📊 Oráculo BTC - Trade Journal & Analytics")
+st.sidebar.subheader("🔍 Debug de Infra")
+if os.path.exists("/app/data"):
+    st.sidebar.write("Arquivos na pasta data:", os.listdir("/app/data"))
+else:
+    st.sidebar.error("Pasta /app/data não encontrada!")
 
 # Caminhos das fontes de dados
-DB_PATH = "data/trading_data.db"
-JSONL_PATH = "data/trade_journal.jsonl"
+DB_PATH = "/app/data/trading_data.db"
+JSONL_PATH = "/app/data/trade_journal.jsonl"
 
 def load_data():
     # 1. Tenta carregar o JSONL (Mais detalhado)
