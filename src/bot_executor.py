@@ -86,8 +86,8 @@ class TradingBot:
         # Estado do bot
         self.daily_start_balance = None
         self.open_order = None
-        self.paper_balance = 10000.0  # Saldo simulado R$ 10.000
-        self.paper_start_balance = 10000.0
+        self.paper_balance = 100.0  # Saldo simulado R$ 10.000
+        self.paper_start_balance = 100.0
         self.trade_count = 0
 
         # JSONL Trade Journaling (prompt.md)
