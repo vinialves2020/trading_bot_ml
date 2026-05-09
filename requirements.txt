@@ -6,4 +6,4 @@ xgboost
 lightgbm
 transformers
 scikit-learn
-pandas-ta @ git+https://github.com/twopirllc/pandas-ta.git@development
+pandas-ta @ https://github.com/twopirllc/pandas-ta/archive/refs/heads/development.zip

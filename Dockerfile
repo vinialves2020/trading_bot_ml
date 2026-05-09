@@ -1,6 +1,10 @@
 FROM python:3.11-slim
 
-# Adicionamos 'git' à lista de instalação do sistema
+FROM python:3.11-slim
+
+# Impede que o Git peça credenciais no terminal
+ENV GIT_TERMINAL_PROMPT=0
+
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
