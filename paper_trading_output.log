@@ -1,0 +1,413 @@
+ FinBERT disponvel para anlise de sentimento
+ Modelo de Magnitude (LightGBM) carregado
+ Kelly Criterion: 2.00% (do treino)
+ Bot de Scalping BTC/USDT 15m INICIADO (PAPER TRADING - Binance)
+ Threshold: 50% | TP: 0.4% | SL: 0.2%
+ Risco maximo: 2% por operacao | Drawdown: -5%
+ Saldo simulado: $10000.00
+ Reset diario do drawdown: $10000.00
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro NewsAPI: 401
+ Sentimento FinBERT: 0.00
+ Confiana ajustada (c/ FinBERT): 68.25%
+ 22:27:31 UTC | Preo: $80359.17 | Confiana: 68.25%
+ SINAL [LONG] | Conf: 68.25% | Entrada: $80359.17
+ TP: $80680.61 | SL: $80198.45
+ Posicao: $100000.00 (1.244413 BTC) - Risco 2%
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro NewsAPI: 401
+ Sentimento FinBERT: 0.00
+ Confiana ajustada (c/ FinBERT): 66.90%
+ 22:42:33 UTC | Preo: $80315.14 | Confiana: 66.90%
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro NewsAPI: 401
+ Sentimento FinBERT: 0.00
+ Confiana ajustada (c/ FinBERT): 66.83%
+ 22:57:35 UTC | Preo: $80283.61 | Confiana: 66.83%
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro NewsAPI: 401
+ Sentimento FinBERT: 0.00
+ Confiana ajustada (c/ FinBERT): 67.15%
+ 23:12:36 UTC | Preo: $80249.06 | Confiana: 67.15%
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro NewsAPI: 401
+ Sentimento FinBERT: 0.00
+ Confiana ajustada (c/ FinBERT): 66.04%
+ 23:27:38 UTC | Preo: $80207.38 | Confiana: 66.04%
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro NewsAPI: 401
+ Sentimento FinBERT: 0.00
+ Confiana ajustada (c/ FinBERT): 64.15%
+ 23:42:40 UTC | Preo: $80158.31 | Confiana: 64.15%
+ ORDEM FECHADA [SL] | Preco: $80158.31 | PnL: -0.25% ($-249.95)
+ Saldo simulado: $9750.05
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro NewsAPI: 401
+ Sentimento FinBERT: 0.00
+ Confiana ajustada (c/ FinBERT): 67.03%
+ 23:57:42 UTC | Preo: $80198.00 | Confiana: 67.03%
+ SINAL [LONG] | Conf: 67.03% | Entrada: $80198.00
+ TP: $80518.79 | SL: $80037.60
+ Posicao: $97500.47 (1.215747 BTC) - Risco 2%
+
+ TP: $80501.79 | SL: $80020.71
+ Posicao: $97902.90 (1.221023 BTC) - Risco 2%
+ Erro ao executar query: table trade_history has no column named position_size
+ (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
+ Calculando Indicadores Tcnicos (Feature Engineering)...
+ Features calculadas. Colunas geradas: 55
+   Total de linhas prontas para treino: 801
+ Erro no loop: Feature shape mismatch, expected: 19, got 21
