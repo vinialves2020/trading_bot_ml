@@ -50,25 +50,42 @@ if df.empty:
 else:
     st.sidebar.success(f"Fonte: {source_name}")
     
+    # Separa apenas os eventos de fechamento (onde o dinheiro realmente troca de mãos)
+    df_closed = df[df['event'] == 'CLOSE'].copy()
+    
     # Métricas de Cabeçalho
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total de Trades", len(df))
+    col1.metric("Sinais de Entrada", len(df[df['event'] == 'ENTRY']))
     
-    if 'pnl' in df.columns:
-        total_pnl = df['pnl'].sum()
-        col2.metric("PnL Acumulado", f"${total_pnl:.2f}", delta=f"{total_pnl:.2f}")
+    if not df_closed.empty and 'profit_usdt' in df_closed.columns:
+        total_pnl = df_closed['profit_usdt'].sum()
+        wins = len(df_closed[df_closed['result'] == 'TP'])
+        losses = len(df_closed[df_closed['result'] == 'SL'])
+        win_rate = (wins / len(df_closed)) * 100 if len(df_closed) > 0 else 0
         
-    if 'type' in df.columns:
-        longs = len(df[df['type'] == 'LONG'])
-        col3.metric("Operações Long", longs)
+        # Formata com cor condicional nativa do Streamlit
+        col2.metric("Lucro/Prejuízo (PnL)", f"${total_pnl:.2f}")
+        col3.metric("Taxa de Acerto", f"{win_rate:.1f}%")
 
-    # Tabela de Trades Detalhada
+        # Gráfico de Evolução do Patrimônio
+        st.subheader("📈 Curva de Patrimônio (Paper Trading)")
+        if 'paper_balance_after' in df_closed.columns:
+            # Plota o saldo oficial calculado pelo bot
+            chart_data = df_closed[['timestamp', 'paper_balance_after']].set_index('timestamp')
+            st.line_chart(chart_data)
+        else:
+            # Fallback: soma os lucros
+            df_closed['equity_curve'] = df_closed['profit_usdt'].cumsum()
+            chart_data = df_closed[['timestamp', 'equity_curve']].set_index('timestamp')
+            st.line_chart(chart_data)
+    else:
+        col2.metric("Lucro/Prejuízo (PnL)", "$0.00")
+        col3.metric("Taxa de Acerto", "N/A")
+        st.info("Aguardando o fechamento do primeiro trade para calcular o lucro.")
+
+    # Tabela de Trades Detalhada (Mostra tudo: Entries e Closes)
     st.subheader("📝 Diário de Bordo (Trade Journal)")
-    # Reordenando para ver o mais recente primeiro
-    st.dataframe(df.sort_index(ascending=False), use_container_width=True)
-
-    # Gráfico de Evolução
-    if 'pnl' in df.columns:
-        st.subheader("📈 Curva de Patrimônio")
-        df['equity_curve'] = df['pnl'].cumsum()
-        st.line_chart(df['equity_curve'])
+    
+    # Limpa as colunas vazias para deixar a tabela mais bonita
+    df_display = df.dropna(axis=1, how='all').sort_index(ascending=False)
+    st.dataframe(df_display, use_container_width=True)
