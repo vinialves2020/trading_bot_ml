@@ -15,7 +15,7 @@ services:
     # Roda o Streamlit em vez do bot
     command: streamlit run src/dashboard.py --server.port=8501 --server.address=0.0.0.0
     ports:
-      - "8501:8501" # Expõe a porta para a internet
+      - "80:8501"
     volumes:
       - ./data:/app/data  # Lê a mesma pasta que o bot escreve
     depends_on:
