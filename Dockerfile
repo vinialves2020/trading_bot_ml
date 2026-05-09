@@ -1,6 +1,5 @@
 FROM python:3.12-slim
 
-# Desliga o buffer do Python para os logs aparecerem em tempo real no Docker
 ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y \
@@ -9,11 +8,12 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Unificamos o RUN: Instala o Torch CPU e, na mesma camada, instala o resto.
+# Isso impede o pip de baixar a versão da NVIDIA por engano.
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
