@@ -56,7 +56,10 @@ class FeatureEngineer:
 
         # Bollinger Bands (Mapeando nomes do pandas_ta)
         df['BBL_20_2.0'] = bollinger_lband(df['close'], window=20, window_dev=2)
-        df['BBM_20_2.0'] = bollinger_mavg(df['close'], window=20, window_dev=2)
+        
+        # A média móvel central NÃO aceita desvio padrão (window_dev)
+        df['BBM_20_2.0'] = bollinger_mavg(df['close'], window=20) 
+        
         df['BBU_20_2.0'] = bollinger_hband(df['close'], window=20, window_dev=2)
         df['BBB_20_2.0_2.0'] = bollinger_wband(df['close'], window=20, window_dev=2)
 
