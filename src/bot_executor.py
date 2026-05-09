@@ -23,9 +23,14 @@ class TradingBot:
         self.paper_trading = paper_trading
         self.db_manager = DatabaseManager('data/trading_data.db')
 
-        # Conexes Binance
-        self.exchange = ccxt.binance({'enableRateLimit': True})
-        self.exchange_futures = ccxt.binanceusdm({'enableRateLimit': True})
+       # Conexões Bybit (Substituto para burlar o bloqueio de IP da AWS)
+        self.exchange = ccxt.bybit({'enableRateLimit': True})
+        
+        # O equivalente ao binanceusdm (Futuros) na Bybit é o tipo 'linear'
+        self.exchange_futures = ccxt.bybit({
+            'enableRateLimit': True,
+            'options': {'defaultType': 'linear'} 
+        })
 
         # FinBERT Sentiment (carregamento tardio)
         self.finbert_available = False
