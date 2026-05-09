@@ -10,8 +10,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# Unificamos o RUN: Instala o Torch CPU e, na mesma camada, instala o resto.
-# Isso impede o pip de baixar a versão da NVIDIA por engano.
+# Instala o Torch CPU leve e depois o resto do PyPI oficial
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
