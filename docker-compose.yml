@@ -1,16 +1,22 @@
+version: '3.8'
+
 services:
   trading-bot:
     build: .
     container_name: oraculo_btc_bot
-    # Reinicia o bot automaticamente se a AWS cair ou o processo falhar
     restart: unless-stopped
     volumes:
-      # MAPEAMENTO DE VOLUME: 
-      # Garante que o banco de dados e o trade_journal.jsonl 
-      # fiquem salvos na pasta 'data' da sua instância AWS
-      - ./data:/app/data
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10mb"
-        max-file: "3"
+      - ./data:/app/data  # Sincroniza a pasta data do container com a AWS
+
+  dashboard:
+    build: .
+    container_name: oraculo_dashboard
+    restart: unless-stopped
+    # Roda o Streamlit em vez do bot
+    command: streamlit run src/dashboard.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501" # Expõe a porta para a internet
+    volumes:
+      - ./data:/app/data  # Lê a mesma pasta que o bot escreve
+    depends_on:
+      - trading-bot

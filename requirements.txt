@@ -6,4 +6,4 @@ xgboost
 lightgbm
 transformers
 scikit-learn
-pandas-ta
+streamlit
