@@ -1,0 +1,16 @@
+services:
+  trading-bot:
+    build: .
+    container_name: oraculo_btc_bot
+    # Reinicia o bot automaticamente se a AWS cair ou o processo falhar
+    restart: unless-stopped
+    volumes:
+      # MAPEAMENTO DE VOLUME: 
+      # Garante que o banco de dados e o trade_journal.jsonl 
+      # fiquem salvos na pasta 'data' da sua instância AWS
+      - ./data:/app/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10mb"
+        max-file: "3"
