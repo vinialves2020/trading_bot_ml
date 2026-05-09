@@ -4,3 +4,6 @@
 /Novo(a) Documento de Texto.txt
 /prompt.md
 /resposta.txt
+data/*.db
+data/*.db.db
+data/trade_journal.jsonl
