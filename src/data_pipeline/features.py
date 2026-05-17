@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 # Importações específicas da biblioteca 'ta'
-from ta.trend import ema_indicator, sma_indicator, macd, macd_signal, macd_diff
+from ta.trend import ema_indicator, sma_indicator, macd, macd_signal, macd_diff, adx
 from ta.momentum import rsi, stochrsi_k
 from ta.volatility import average_true_range, bollinger_hband, bollinger_lband, bollinger_mavg, bollinger_wband
 
@@ -15,6 +15,8 @@ class FeatureEngineer:
         df['EMA_9'] = ema_indicator(df['close'], window=9)
         df['EMA_21'] = ema_indicator(df['close'], window=21)
         df['SMA_200'] = sma_indicator(df['close'], window=200)
+        # ADX (Average Directional Index) for choppiness filter
+        df['ADX_14'] = adx(df['high'], df['low'], df['close'], window=14)
 
         # Sinal macro binário
         df['macro_trend'] = np.where(df['close'] > df['SMA_200'], 1.0, -1.0)
@@ -112,9 +114,45 @@ class FeatureEngineer:
         return df
 
     @staticmethod
-    def create_target(df, horizon=16, profit_target=0.004, stop_loss=0.002):
-        # (Mantenha o seu código do Triple Barrier original aqui, ele é excelente)
-        # ... 
+    def create_target(df, horizon=16, profit_target=0.009, stop_loss=0.003):
+        print(f" 🎯 Gerando Target (Triple Barrier) com Alvo: {profit_target*100:.1f}%, Stop: {stop_loss*100:.1f}%, Horizonte: {horizon} velas...")
+        df = df.copy()
+        
+        # Converte para arrays do numpy para processamento ultrarrápido
+        import numpy as np
+        closes = df['close'].values
+        highs = df['high'].values
+        lows = df['low'].values
+        
+        # Array vazio para guardar o gabarito
+        targets = np.full(len(df), np.nan)
+        
+        # Loop veloz pelo histórico (ignora as últimas velas do horizonte)
+        for i in range(len(df) - horizon):
+            entry_price = closes[i]
+            tp_price = entry_price * (1 + profit_target)
+            sl_price = entry_price * (1 - stop_loss)
+            
+            outcome = 0 # 0 = Timeout (Ficou lateral e não bateu nos alvos)
+            
+            # Olha para o futuro (horizon)
+            for j in range(1, horizon + 1):
+                idx = i + j
+                
+                # Regra de Ouro: O Stop Loss é prioridade. Se o pavio bater no Stop, aborta.
+                if lows[idx] <= sl_price:
+                    outcome = -1
+                    break
+                # Se o pavio bater no Take Profit sem bater no Stop antes:
+                elif highs[idx] >= tp_price:
+                    outcome = 1
+                    break
+                    
+            targets[i] = outcome
+            
+        # Aplica o resultado de volta ao DataFrame
+        df['target'] = targets
+        
         return df
 
     @staticmethod
@@ -125,5 +163,5 @@ class FeatureEngineer:
             'funding_rate', 'funding_z_score', 'macro_trend', 'macro_trend_4h',
             'dist_ema21', 'dist_vwap', 'ret_1h', 'ret_4h', 'momentum_3', 'RSI_norm',
             'StochRSI_norm', 'MACD_12_26_9', 'MACDh_12_26_9', 'MACDs_12_26_9',
-            'volume_ratio_24h', 'price_position_4h'
+            'volume_ratio_24h', 'price_position_4h', 'ADX_14'
         ]

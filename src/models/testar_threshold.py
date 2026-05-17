@@ -30,7 +30,9 @@ def main():
     df_clean = df[available_features + ['target']].dropna()
 
     X = df_clean[available_features]
-    y = df_clean['target']
+    
+    # Transforma o alvo em Binário: 1 (Vitória LONG) e 0 (Derrota ou Lateralização)
+    y = (df_clean['target'] == 1).astype(int)
 
     train_size = int(len(df_clean) * 0.8)
     X_test, y_test = X.iloc[train_size:], y.iloc[train_size:]

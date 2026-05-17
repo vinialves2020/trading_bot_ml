@@ -17,18 +17,23 @@ from xgboost import XGBClassifier
 import lightgbm as lgb
 
 class TradingBot:
-    def __init__(self, symbol='BTC/USDT', threshold=0.50, paper_trading=True):
+    def __init__(self, symbol='BTC/USDT', threshold=0.70, paper_trading=True):
         self.symbol = symbol
         self.threshold = threshold
         self.paper_trading = paper_trading
         self.db_manager = DatabaseManager('data/trading_data.db')
 
-       # Conexões Bybit (Substituto para burlar o bloqueio de IP da AWS)
-        self.exchange = ccxt.kucoin({'enableRateLimit': True})
-        
-        self.exchange_futures = ccxt.kucoin({
+        # Conexões Binance Futures
+        self.exchange = ccxt.binance({
             'enableRateLimit': True,
-            'options': {'defaultType': 'future'} 
+            'options': {
+                'defaultType': 'future',  # USDT-margined futures
+            }
+        })
+
+        self.exchange_futures = ccxt.binance({
+            'enableRateLimit': True,
+            'options': {'defaultType': 'future'}
         })
 
         # FinBERT Sentiment (carregamento tardio)
@@ -77,8 +82,10 @@ class TradingBot:
                 print(f" Kelly Criterion: {self.kelly_fraction*100:.2f}% (do treino)")
 
         # Parametros da estrategia (ALINHADOS COM O TREINO)
-        self.tp_pct = 0.004   # 0.4%
+        self.tp_pct = 0.012   # 1.2%
         self.sl_pct = 0.002   # 0.2%
+        self.break_even_trigger_pct = 0.006 # 0.6% de lucro ativa a proteção
+        self.break_even_target_pct = 0.002 # Move o stop para o ponto de entrada + 0.2% quando o lucro atingir 0.6%
         self.fee_rate = 0.001 # 0.1% Taxa da Binance (Maker/Taker)
         self.max_risk_per_trade = self.kelly_fraction  # Usa Kelly dinamico
         self.max_daily_drawdown = 0.05   # -5% suspende
@@ -89,6 +96,13 @@ class TradingBot:
         self.paper_balance = 100.0  # Saldo simulado R$ 10.000
         self.paper_start_balance = 100.0
         self.trade_count = 0
+        # Order tracking for limit order fallback
+        self.order_timestamp = None
+        self.order_id = None
+        # Limit order tracking
+        self.limit_order_price = None
+        self.limit_order_side = None
+        self.limit_order_timestamp = None
 
         # JSONL Trade Journaling (prompt.md)
         self.journal_file = os.path.join(base_path, "data", "trade_journal.jsonl")
@@ -204,11 +218,41 @@ class TradingBot:
         except Exception as e:
             print(f" Erro ao buscar saldo: {e}")
             return None
-
+    def _check_macro_trend(self):
+        """
+        Busca o gráfico de 4H para definir a tendência maior.
+        Retorna: 1 (Alta), -1 (Baixa), 0 (Neutro/Erro)
+        """
+        try:
+            # Busca as últimas 50 velas de 4 Horas da Binance
+            ohlcv = self.exchange_futures.fetch_ohlcv(self.symbol, timeframe='4h', limit=50)
+            
+            # Usando importação local do pandas para evitar erros de escopo
+            import pandas as pd
+            df_4h = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            
+            # Calcula a Média Móvel Exponencial (EMA) de 50 períodos (Tendência Institucional)
+            from ta.trend import ema_indicator
+            df_4h['ema_50'] = ema_indicator(df_4h['close'], window=50)
+            
+            last_close = df_4h['close'].iloc[-1]
+            last_ema = df_4h['ema_50'].iloc[-1]
+            
+            # Se não houver dados suficientes para a EMA, fica neutro
+            if pd.isna(last_ema):
+                return 0 
+                
+            # Se o preço atual está acima da EMA de 4H, a maré é de ALTA. Se não, BAIXA.
+            return 1 if last_close > last_ema else -1
+            
+        except Exception as e:
+            print(f" ⚠️ Erro ao buscar tendência 4H: {e}")
+            return 0 # Em caso de erro da exchange, libera o trade (Neutro)
+        
     def run(self):
         mode_str = "PAPER TRADING" if self.paper_trading else "LIVE TRADING"
         print(f" Bot de Scalping BTC/USDT 15m INICIADO ({mode_str} - Binance)")
-        print(f" Threshold: {self.threshold*100:.0f}% | TP: {self.tp_pct*100:.1f}% | SL: {self.sl_pct*100:.1f}%")
+        print(f" Threshold: {self.threshold*100:.0f}%")
         print(f" Risco maximo: {self.max_risk_per_trade*100:.0f}% por operacao | Drawdown: -{self.max_daily_drawdown*100:.0f}%")
 
         if self.paper_trading:
@@ -230,31 +274,24 @@ class TradingBot:
                     time.sleep(900)
                     continue
 
-                # 1. ORÁCULO: Olha para a última vela FECHADA (índice -2) para garantir a integridade matemática
                 closed_candle = df.iloc[-2]
                 features = closed_candle[self.features_list].values.reshape(1, -1)
                 prob = self.model.predict_proba(features)[0][1]
 
-                # 2. MERCADO: O preço que compramos agora é o da vela ATUAL (índice -1)
                 current_price = df.iloc[-1]['close']
 
-                # FinBERT Sentimento (opcional, enriquece contexto)
                 if self.finbert_available:
                     try:
                         score_sent = self._get_sentiment()
-                        debug_msg = f" Sentimento FinBERT: {score_sent:.2f}"
-                        print(debug_msg)
-                        # Ajustar confiana baseado em sentimento (finbert_training_prompt.md)
+                        print(f" Sentimento FinBERT: {score_sent:.2f}")
                         prob_adj = prob * (1 + 0.15 * score_sent)
-                        prob = prob_adj  # Aplica o ajuste na deciso
-                        print(f" Confiana ajustada (c/ FinBERT): {prob:.2%}")
+                        prob = prob_adj
+                        print(f" Confianca ajustada (c/ FinBERT): {prob:.2%}")
                     except Exception as e:
                         print(f" Erro FinBERT: {e}")
 
-                # Debug: mostra a confiana a cada ciclo
-                print(f" {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC | Preo: ${closed_candle['close']:.2f} | Confiana: {prob:.2%}")
+                print(f" {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC | Preco: ${closed_candle['close']:.2f} | Confianca: {prob:.2%}")
 
-                # Contexto de mercado para o Journal
                 market_context = {
                     'rsi': float(closed_candle.get('RSI_norm', 0)),
                     'funding': float(closed_candle.get('funding_rate', 0)),
@@ -262,132 +299,205 @@ class TradingBot:
                     'macro_trend': float(closed_candle.get('macro_trend', 0)),
                 }
 
-                if self.open_order is None and prob >= self.threshold:
-                    entry_price = closed_candle['close']
-                    side = 'LONG'
+                # 1. Filtro de Mercado Lateral (ADX)
+                adx_value = closed_candle.get('ADX_14', 0)
+                
+                # 2. Filtro Multi-Timeframe (4 Horas)
+                macro_trend_direction = self._check_macro_trend()
 
-                    take_profit = entry_price * (1 + self.tp_pct)
-                    stop_loss = entry_price * (1 - self.sl_pct)
+                # --- LÓGICA DE ABERTURA DE ORDEM ---
+                if self.open_order is None and prob >= self.threshold and adx_value >= 25:
+                    
+                    if macro_trend_direction >= 0: # 1 (Alta) ou 0 (Neutro)
+                        entry_price = closed_candle['close']
+                        side = 'LONG'
 
-                    # CALCULO DE TAMANHO DA POSICAO (2% risco)
-                    # Retorna qty em BTC
-                    qty_btc = self._calculate_position_size(entry_price, stop_loss)
-                    position_size_usdt = qty_btc * entry_price  # Valor em USDT
+                        # 3. Cálculo Dinâmico de SL/TP via ATR (Volatilidade)
+                        current_atr = float(closed_candle.get('ATRr_14', entry_price * 0.002)) 
+                        min_atr_usdt = entry_price * 0.003
+                        atr_to_use = max(current_atr, min_atr_usdt)
 
-                    self.open_order = {
-                        'side': side,
-                        'entry_price': entry_price,
-                        'take_profit': take_profit,
-                        'stop_loss': stop_loss,
-                        'confidence': prob,
-                        'qty_btc': qty_btc,
-                        'position_size_usdt': position_size_usdt,
-                        'timestamp': datetime.now(timezone.utc)
-                    }
+                        atr_multiplier_sl = 1.5
+                        atr_multiplier_tp = 3.0
+                        
+                        if side == 'LONG':
+                            stop_loss = entry_price - (atr_to_use * atr_multiplier_sl)
+                            take_profit = entry_price + (atr_to_use * atr_multiplier_tp)
 
-                    print(f" SINAL [{side}] | Conf: {prob:.2%} | Entrada: ${entry_price:.2f}")
-                    print(f" TP: ${take_profit:.2f} | SL: ${stop_loss:.2f}")
-                    print(f" Posicao: ${position_size_usdt:.2f} ({qty_btc:.6f} BTC) - Risco 2%")
+                        qty_btc = self._calculate_position_size(entry_price, stop_loss)
+                        position_size_usdt = qty_btc * entry_price 
 
-                    # SQLite Log
-                    try:
-                        self.db_manager.execute_query(
-                            "INSERT INTO trade_history (timestamp, side, entry_price, take_profit, stop_loss, confidence, position_size_usdt) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            (datetime.now(timezone.utc), side, entry_price, take_profit, stop_loss, prob, position_size_usdt)
-                        )
-                        print(" SQLite: Trade salvo")
-                    except Exception as e:
-                        print(f" SQLite ERRO: {e}")
+                        limit_price = entry_price * 0.9998 
+                        self.limit_order_price = limit_price
+                        self.limit_order_side = side
+                        self.limit_order_timestamp = datetime.now(timezone.utc)
 
-                    # JSONL Trade Journal (prompt.md)
-                    try:
-                        journal_entry = {
-                            'event': 'ENTRY',
-                            'timestamp': datetime.now(timezone.utc).isoformat(),
+                        self.open_order = {
                             'side': side,
-                            'entry_price': entry_price,
+                            'signal_price': entry_price, 
+                            'limit_price': limit_price,
                             'take_profit': take_profit,
                             'stop_loss': stop_loss,
                             'confidence': prob,
+                            'qty_btc': qty_btc,
                             'position_size_usdt': position_size_usdt,
-                            'position_qty_btc': qty_btc,
-                            'market_context': market_context,
-                            'reason': f"XGBoost prediction {prob:.2%} >= threshold {self.threshold:.2%}",
-                            'paper_trading': self.paper_trading
+                            'timestamp': datetime.now(timezone.utc),
+                            'order_type': 'LIMIT',
+                            'filled': False,
+                            'actual_entry_price': None,
+                            'break_even_activated': False # Estado do Break-Even
                         }
-                        self._log_to_journal(journal_entry)
-                        print(" JSONL: Trade salvo")
-                    except Exception as e:
-                        print(f" JSONL ERRO: {e}")
 
+                        print(f" SINAL [{side}] | Conf: {prob:.2%} | Entrada: ${entry_price:.2f} | ADX: {adx_value:.2f}")
+                        print(f" LIMIT ORDER: ${limit_price:.2f} (Maker) | TP: ${take_profit:.2f} | SL: ${stop_loss:.2f}")
+                        print(f" Posicao: ${position_size_usdt:.2f} ({qty_btc:.6f} BTC) - Risco 2%")
+
+                    else:
+                        print(f" 🛑 SINAL IGNORADO: Conflito Macro. 15m pede LONG, mas 4H esta em tendencia de BAIXA.")
+
+                elif self.open_order is None and prob >= self.threshold and adx_value < 25:
+                    print(f" ⏸️ Mercado lateral (ADX < 25) - Sinal ignorado | ADX: {adx_value:.2f} | Conf: {prob:.2%}")
+
+                # --- LÓGICA DE GESTÃO DA ORDEM ABERTA ---
                 elif self.open_order:
                     current_price = closed_candle['close']
                     order = self.open_order
 
-                    hit_tp = current_price >= order['take_profit']
-                    hit_sl = current_price <= order['stop_loss']
+                    if order.get('order_type') == 'LIMIT' and not order.get('filled', False):
+                        limit_price = order['limit_price']
+                        side = order['side']
 
-                    if hit_tp or hit_sl:
-                        result = "TP" if hit_tp else "SL"
-                        # PnL bruto
-                        price_diff = current_price - order['entry_price']
-                        gross_profit_usdt = order['qty_btc'] * price_diff
-                        
-                        # Calculo EXATO das taxas (Compra + Venda)
-                        fee_usdt = (order['qty_btc'] * order['entry_price'] * self.fee_rate) + \
-                                   (order['qty_btc'] * current_price * self.fee_rate)
-                        
-                        # PnL Liquido (O dinheiro que realmente vai pro seu bolso)
-                        profit_usdt = gross_profit_usdt - fee_usdt
-                        profit_pct = (profit_usdt / order['position_size_usdt']) * 100
+                        limit_filled = False
+                        if side == 'LONG' and current_price <= limit_price:
+                            limit_filled = True
 
-                        if self.paper_trading:
-                            self.paper_balance += profit_usdt
-                            print(f" ORDEM FECHADA [{result}] | Preco: ${current_price:.2f} | PnL: {profit_pct:.2f}% (${profit_usdt:.2f})")
-                            print(f" Saldo simulado: ${self.paper_balance:.2f}")
+                        if limit_filled:
+                            actual_entry_price = limit_price
+                            order['filled'] = True
+                            order['actual_entry_price'] = actual_entry_price
+                            print(f" LIMIT ORDER PREENCHIDA em ${actual_entry_price:.2f}")
                         else:
-                            print(f" ORDEM FECHADA [{result}] | Preco: ${current_price:.2f} | PnL: {profit_pct:.2f}%")
+                            time_elapsed = (datetime.now(timezone.utc) - self.limit_order_timestamp).total_seconds()
+                            if time_elapsed >= 60:
+                                print(f" LIMIT ORDER TIMEOUT ({time_elapsed:.0f}s) - Trocando para MARKET order")
+                                market_entry_price = current_price
+                                order['order_type'] = 'MARKET'
+                                order['filled'] = True
+                                order['actual_entry_price'] = market_entry_price
+                                order['entry_price'] = market_entry_price
+                                print(f" MARKET ORDER EXECUTADA em ${market_entry_price:.2f}")
+                                
+                                try:
+                                    journal_entry = {
+                                        'event': 'ORDER_FALLBACK',
+                                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                                        'side': order['side'],
+                                        'limit_price': order['limit_price'],
+                                        'market_price': market_entry_price,
+                                        'time_elapsed_seconds': time_elapsed,
+                                        'reason': 'Timeout na ordem Limit',
+                                        'paper_trading': self.paper_trading
+                                    }
+                                    self._log_to_journal(journal_entry)
+                                except Exception as e:
+                                    pass
+                            else:
+                                print(f"⏳ Aguardando LIMIT ordem... ({time_elapsed:.0f}s/60s) | Preco atual: ${current_price:.2f} | Limite: ${limit_price:.2f}")
+                                
+                                now = datetime.now(timezone.utc)
+                                min_to_next_15 = 15 - (now.minute % 15)
+                                next_run = now.replace(second=0, microsecond=0) + timedelta(minutes=min_to_next_15)
+                                sleep_seconds = (next_run - now).total_seconds() + 5
+                                
+                                import gc
+                                gc.collect()
+                                time.sleep(max(10, sleep_seconds)) 
+                                continue
 
-                        self.db_manager.execute_query(
-                            "UPDATE trade_history SET status = ? WHERE id = (SELECT MAX(id) FROM trade_history)",
-                            (result,)
-                        )
+                    if order.get('filled', False) or order.get('order_type') != 'LIMIT':
+                        
+                        if order.get('actual_entry_price') is not None:
+                            entry_price = order['actual_entry_price']
+                        else:
+                            entry_price = order.get('entry_price', current_price)
 
-                        # JSONL Close Journal
-                        close_journal = {
-                            'event': 'CLOSE',
-                            'timestamp': datetime.now(timezone.utc).isoformat(),
-                            'result': result,
-                            'exit_price': current_price,
-                            'profit_pct': profit_pct,
-                            'profit_usdt': profit_usdt if self.paper_trading else None,
-                            'paper_balance_after': self.paper_balance if self.paper_trading else None,
-                            'reason': f"Price hit {result}",
-                            'paper_trading': self.paper_trading
-                        }
-                        self._log_to_journal(close_journal)
+                        # Busca TP do dicionário da ordem (que foi calculado dinamicamente com ATR)
+                        take_profit = order['take_profit']
+                        
+                        # 4. GATILHO DE BREAK-EVEN
+                        if not order.get('break_even_activated', False):
+                            if order['side'] == 'LONG':
+                                distancia_tp = take_profit - entry_price
+                                trigger_price = entry_price + (distancia_tp / 2.0)
+                                
+                                if current_price >= trigger_price:
+                                    # Move para a entrada + 0.2% para cobrir taxas
+                                    new_stop_loss = entry_price * (1 + self.break_even_target_pct)
+                                    order['stop_loss'] = new_stop_loss
+                                    order['break_even_activated'] = True
+                                    print(f" 🛡️ BREAK-EVEN ATIVADO! Stop Loss movido para: ${new_stop_loss:.2f}")
+                        
+                        # Busca SL atualizado
+                        stop_loss = order['stop_loss']
 
-                        self.open_order = None
-                        self.trade_count += 1
+                        hit_tp = current_price >= take_profit
+                        hit_sl = current_price <= stop_loss
+
+                        if hit_tp or hit_sl:
+                            result = "TP" if hit_tp else "SL"
+                            price_diff = current_price - entry_price
+                            gross_profit_usdt = order['qty_btc'] * price_diff
+
+                            if order.get('order_type') == 'LIMIT' and order.get('filled', False) and not (time_elapsed >= 60 if 'time_elapsed' in locals() else False):
+                                effective_fee_rate = self.fee_rate * 0.75 
+                            else:
+                                effective_fee_rate = self.fee_rate
+
+                            fee_usdt = (order['qty_btc'] * entry_price * effective_fee_rate) + \
+                                       (order['qty_btc'] * current_price * effective_fee_rate)
+
+                            profit_usdt = gross_profit_usdt - fee_usdt
+                            profit_pct = (profit_usdt / order['position_size_usdt']) * 100
+
+                            if self.paper_trading:
+                                self.paper_balance += profit_usdt
+                                print(f" ORDEM FECHADA [{result}] | Preco: ${current_price:.2f} | PnL: {profit_pct:.2f}% (${profit_usdt:.2f})")
+                                print(f" Saldo simulado: ${self.paper_balance:.2f}")
+                            else:
+                                print(f" ORDEM FECHADA [{result}] | Preco: ${current_price:.2f} | PnL: {profit_pct:.2f}%")
+
+                            self.db_manager.execute_query(
+                                "UPDATE trade_history SET status = ? WHERE id = (SELECT MAX(id) FROM trade_history)",
+                                (result,)
+                            )
+
+                            close_journal = {
+                                'event': 'CLOSE',
+                                'timestamp': datetime.now(timezone.utc).isoformat(),
+                                'result': result,
+                                'exit_price': current_price,
+                                'profit_pct': profit_pct,
+                                'profit_usdt': profit_usdt if self.paper_trading else None,
+                                'paper_balance_after': self.paper_balance if self.paper_trading else None,
+                                'reason': f"Hit {result} (Tipo: {order.get('order_type', 'UNKNOWN')} | ATR adaptativo)",
+                                'paper_trading': self.paper_trading
+                            }
+                            self._log_to_journal(close_journal)
+
+                            self.open_order = None
+                            self.trade_count += 1
 
                 # --- SINCRONIZAÇÃO DE TEMPO ABSOLUTA ---
                 now = datetime.now(timezone.utc)
-                # Quantos minutos faltam para a próxima janela de 15m (ex: 15:00, 15:15, 15:30)
                 min_to_next_15 = 15 - (now.minute % 15)
-                
-                # Calcula a hora exata da próxima execução e zera os segundos
                 next_run = now.replace(second=0, microsecond=0) + timedelta(minutes=min_to_next_15)
-                
-                # Adiciona 5 segundos de "Gordura" para garantir que a Binance já fechou a vela no servidor deles
                 sleep_seconds = (next_run - now).total_seconds() + 5 
                 
-                print(f"⏳ Dormindo por {sleep_seconds/60:.2f} minutos. Próxima leitura às {next_run.strftime('%H:%M:%S')} UTC...")
+                print(f"⏳ Dormindo por {sleep_seconds/60:.2f} minutos. Proxima leitura as {next_run.strftime('%H:%M:%S')} UTC...")
                 
-                # Coleta de lixo forçada para limpar a RAM antes de dormir
                 import gc
                 gc.collect()
-                
-                time.sleep(max(10, sleep_seconds)) # Garante que nunca durma menos de 10s em caso de lag
+                time.sleep(max(10, sleep_seconds))
 
             except KeyboardInterrupt:
                 print("\n Bot encerrado pelo usuario.")
@@ -402,7 +512,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--paper', action='store_true', help='Paper Trading (simulacao, default)')
     group.add_argument('--live', action='store_true', help='Executar com capital real')
-    parser.add_argument('--threshold', type=float, default=0.50, help='Confianca minima (default: 0.50)')
+    parser.add_argument('--threshold', type=float, default=0.70, help='Confianca minima (default: 0.70)')
     args = parser.parse_args()
 
     # Default: Paper Trading (se nenhum modo especificado ou se --paper)

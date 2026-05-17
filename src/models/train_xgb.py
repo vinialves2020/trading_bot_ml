@@ -74,14 +74,19 @@ def train_direction_model(X_train, y_train, X_val=None, y_val=None):
 
     return model
 
-def train_magnitude_model(X_train, y_train):
+def train_magnitude_model(X_train, y_train,X_val=None, y_val=None):
     """
     Modelo Dual: LightGBM para prever magnitude do movimento (regressao).
     y_train = retorno percentual futuro em decimal.
     """
     print("\n Treinando Modelo de Magnitude (LightGBM)...")
 
-    mask = ~y_train.isna()
+    if hasattr(X_train, 'index') and hasattr(y_train, 'index'):
+        y_train.index = X_train.index
+        
+    mask = y_train > 0
+    
+    # Aplica o filtro de forma segura
     X = X_train[mask]
     y = y_train[mask]
 
@@ -165,19 +170,19 @@ def main():
     print(f" Periodo: {df.index[0]} a {df.index[-1]}")
 
     # Aumentar horizonte para 6h (24 candles de 15m) - mais tempo para o preço se mover
-    df = FeatureEngineer.create_target(df, horizon=24, profit_target=0.004, stop_loss=0.002)
+    df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.009, stop_loss=0.003)
 
     print(f"\n Walk-Forward Validation (5 splits)...")
     features_list = FeatureEngineer.get_feature_list()
 
-    # Filtra apenas features que existem no dataframe
-    available_features = [f for f in features_list if f in df.columns]
-    if len(available_features) < len(features_list):
-        missing = set(features_list) - set(available_features)
-        print(f" Aviso: {len(missing)} features nao encontradas: {missing}")
+    features = FeatureEngineer.get_feature_list()
+    available_features = [f for f in features if f in df.columns]
+    df_clean = df[available_features + ['target']].dropna()
 
-    X = df[available_features].fillna(0)
-    y = df['target']
+    X = df_clean[available_features]
+    
+    # Ajuste binário para o cálculo de precisão
+    y = (df_clean['target'] == 1).astype(int)
 
     df['future_return'] = df['close'].pct_change(periods=16).shift(-16)
     y_magnitude = df['future_return']
@@ -242,7 +247,9 @@ def main():
     final_direction = XGBClassifier(**best_params)
     final_direction.fit(X_final, y_final)
 
-    final_magnitude = train_magnitude_model(X_final, y_magnitude.fillna(0))
+    y_magnitude_aligned = y_magnitude.loc[X_final.index]
+    
+    final_magnitude = train_magnitude_model(X_final, y_magnitude_aligned.fillna(0))
 
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
     models_dir = os.path.join(base_path, "data", "models_weights")
