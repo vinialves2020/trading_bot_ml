@@ -151,7 +151,8 @@ def evaluate_with_sharpe(y_true, y_pred, returns=None):
         'sharpe': sharpe,
         'sortino': sortino,
         'max_drawdown': max_dd,
-        'total_trades': len(returns)
+        'total_trades': len(returns),
+        'win_rate': float((returns > 0).mean()) if len(returns) > 0 else 0.0
     }
 
 def main():
@@ -269,18 +270,17 @@ def main():
         final_magnitude.booster_.save_model(magnitude_path)
         print(f" Modelo Magnitude salvo: {magnitude_path}")
 
-    win_rate = df['target'].mean()
-    avg_win = 0.004
-    avg_loss = 0.002
-
-    kelly = calculate_kelly_fraction(win_rate, avg_win, avg_loss)
-    print(f"\n Kelly Fracionario sugerido: {kelly*100:.2f}% do capital por trade")
-    print(f"   (Atualmente usando 2% fixo - considere ajustar para {kelly*100:.2f}%)")
-
     if metrics_history:
         avg_sharpe = np.mean([m['sharpe'] for m in metrics_history])
         avg_sortino = np.mean([m['sortino'] for m in metrics_history])
         avg_dd = np.mean([m['max_drawdown'] for m in metrics_history])
+        avg_win_rate = np.mean([m['win_rate'] for m in metrics_history])
+        
+        avg_win = 0.006
+        avg_loss = 0.003
+        kelly = calculate_kelly_fraction(avg_win_rate, avg_win, avg_loss)
+        print(f"\n Kelly Fracionario sugerido (Win Rate {avg_win_rate*100:.1f}%): {kelly*100:.2f}% do capital por trade")
+        print(f"   (Atualmente usando 2% fixo - considere ajustar para {kelly*100:.2f}%)")
 
         metrics_summary = {
             'timestamp': datetime.now().isoformat(),

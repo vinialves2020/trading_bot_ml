@@ -258,18 +258,23 @@ class TradingBot:
                     features = closed_candle[self.features_list].values.reshape(1, -1)
                     prob = self.model.predict_proba(features)[0][1]
 
-                    if self.finbert_available:
-                        try:
-                            score_sent = self._get_sentiment()
-                            prob_adj = prob * (1 + 0.15 * score_sent)
-                            prob = prob_adj
-                        except Exception as e:
-                            pass
-
-                    print(f" {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC | Preco Fechamento: ${closed_candle['close']:.2f} | Confianca: {prob:.2%}")
-
                     adx_value = closed_candle.get('ADX_14', 0)
                     macro_trend_direction = self._check_macro_trend()
+
+                    print(f" {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC | Preco Fechamento: ${closed_candle['close']:.2f} | Confianca Base: {prob:.2%}")
+
+                    # FinBERT so e acionado se os filtros basicos passarem e a prob base estiver perto do gatilho 
+                    min_prob_needed = self.threshold / 1.15
+                    if prob >= min_prob_needed and adx_value >= 20 and macro_trend_direction >= 0:
+                        if self.finbert_available:
+                            try:
+                                print(f" 🤖 Confianca na zona de gatilho ({prob:.2%}). Invocando FinBERT...")
+                                score_sent = self._get_sentiment()
+                                prob_adj = prob * (1 + 0.15 * score_sent)
+                                prob = prob_adj
+                                print(f" Confianca ajustada (c/ FinBERT): {prob:.2%}")
+                            except Exception as e:
+                                pass
 
                     if prob >= self.threshold and adx_value >= 20:
                         if macro_trend_direction >= 0:
