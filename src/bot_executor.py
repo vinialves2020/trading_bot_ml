@@ -55,11 +55,20 @@ class TradingBot:
 
         model_path = os.path.join(model_dir, f"xgb_oraculo_{self.prefix}.json")
         if not os.path.exists(model_path):
-            raise FileNotFoundError(f" Modelo nao encontrado em: {model_path}")
+            fallback_path = os.path.join(model_dir, f"xgb_oraculo_{symbol.split('/')[0].lower()}.json")
+            if os.path.exists(fallback_path):
+                model_path = fallback_path
+            else:
+                raise FileNotFoundError(f" Modelo nao encontrado em: {model_path}")
         self.model = XGBClassifier()
         self.model.load_model(model_path)
 
         magnitude_path = os.path.join(model_dir, f"lgbm_magnitude_{self.prefix}.txt")
+        if not os.path.exists(magnitude_path):
+            fallback_mag_path = os.path.join(model_dir, f"lgbm_magnitude_{symbol.split('/')[0].lower()}.txt")
+            if os.path.exists(fallback_mag_path):
+                magnitude_path = fallback_mag_path
+                
         self.magnitude_available = False
         if os.path.exists(magnitude_path):
             try:
