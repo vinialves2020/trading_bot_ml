@@ -240,12 +240,11 @@ class TradingBot:
                     next_run = now.replace(second=0, microsecond=0) + timedelta(minutes=min_to_next_15)
                     sleep_seconds = (next_run - now).total_seconds() + 5 
                     
-                    if sleep_seconds > 10:
+                    if sleep_seconds > 0:
                         print(f"⏳ Aguardando proximo candle de 15m... Dormindo {sleep_seconds/60:.2f} min.")
                         import gc
                         gc.collect()
                         time.sleep(sleep_seconds)
-                        continue # Recomeca o loop pra checar drawdown
 
                     # Acordou, processa as features
                     df = self._get_realtime_data()
