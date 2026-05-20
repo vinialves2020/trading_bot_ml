@@ -9,6 +9,13 @@ services:
     command: uvicorn src.api_finbert:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 900M     # FinBERT pesa ~680MB, dá margem de segurança
+          cpus: '1.5'      # Máximo 1.5 dos 2 vCPUs disponíveis
+        reservations:
+          memory: 500M
 
   oraculo_btc:
     image: oraculo_base_image:latest
@@ -19,6 +26,11 @@ services:
       - ./data:/app/data
     depends_on:
       - finbert_api
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+          cpus: '0.4'
 
   oraculo_eth:
     image: oraculo_base_image:latest
@@ -29,6 +41,11 @@ services:
       - ./data:/app/data
     depends_on:
       - finbert_api
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+          cpus: '0.4'
 
   oraculo_sol:
     image: oraculo_base_image:latest
@@ -39,6 +56,11 @@ services:
       - ./data:/app/data
     depends_on:
       - finbert_api
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+          cpus: '0.4'
 
   dashboard:
     image: oraculo_base_image:latest
@@ -53,3 +75,8 @@ services:
       - oraculo_btc
       - oraculo_eth
       - oraculo_sol
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+          cpus: '0.3'
