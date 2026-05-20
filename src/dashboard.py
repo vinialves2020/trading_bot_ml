@@ -50,6 +50,16 @@ if df.empty:
 else:
     st.sidebar.success(f"Fonte: {source_name}")
     
+    # Filtro Dinâmico de Moedas
+    if 'symbol' in df.columns:
+        symbols = ['Portfólio Global (Todos)'] + list(df['symbol'].unique())
+        selected_symbol = st.sidebar.selectbox("Filtro de Moeda (Ativo)", symbols)
+        if selected_symbol != 'Portfólio Global (Todos)':
+            df = df[df['symbol'] == selected_symbol].copy()
+            st.subheader(f"📊 Métricas: {selected_symbol}")
+        else:
+            st.subheader("📊 Métricas: Portfólio Global")
+    
     # Separa apenas os eventos de fechamento (onde o dinheiro realmente troca de mãos)
     df_closed = df[df['event'] == 'CLOSE'].copy()
     
