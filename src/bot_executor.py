@@ -16,6 +16,40 @@ from src.data_pipeline.features import FeatureEngineer
 from xgboost import XGBClassifier
 import lightgbm as lgb
 
+# ── Duplica stdout para arquivo de log legível pelo Dashboard ────────────────
+class _Tee:
+    """Escreve no stdout E num arquivo de log ao mesmo tempo, com rotação simples."""
+    MAX_BYTES = 512 * 1024  # 512 KB por log
+
+    def __init__(self, stream, filepath):
+        self._stream   = stream
+        self._filepath = filepath
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        self._f = open(filepath, 'a', encoding='utf-8')
+
+    def write(self, data):
+        try: self._stream.write(data)
+        except Exception: pass
+        try:
+            # Rotação: se o arquivo cresceu demais, mantém apenas a metade mais recente
+            if os.path.getsize(self._filepath) > self.MAX_BYTES:
+                self._f.close()
+                with open(self._filepath, 'r', encoding='utf-8', errors='replace') as rf:
+                    lines = rf.readlines()
+                with open(self._filepath, 'w', encoding='utf-8') as wf:
+                    wf.writelines(lines[len(lines) // 2:])
+                self._f = open(self._filepath, 'a', encoding='utf-8')
+            self._f.write(data)
+            self._f.flush()
+        except Exception: pass
+
+    def flush(self):
+        try: self._stream.flush()
+        except Exception: pass
+        try: self._f.flush()
+        except Exception: pass
+
+
 class TradingBot:
     def __init__(self, symbol='BTC/USDT', timeframe='15m', threshold=0.60, paper_trading=True):
         self.symbol = symbol
@@ -115,6 +149,12 @@ class TradingBot:
 
         self.journal_file = os.path.join(base_path, "data", "trade_journal.jsonl")
 
+        # ── Redireciona stdout para arquivo de log (legível pelo Dashboard) ───
+        log_dir  = os.path.join(base_path, "data", "logs")
+        sym_clean = self.symbol.replace("/", "_")
+        log_path  = os.path.join(log_dir, f"bot_{sym_clean}.log")
+        sys.stdout = _Tee(sys.__stdout__, log_path)
+
         self._init_log_table()
 
     def _init_log_table(self):
@@ -139,6 +179,30 @@ class TradingBot:
         )
         """
         self.db_manager.execute_query(query)
+
+        # ── Migração automática: adiciona colunas ausentes em bancos antigos ──
+        import sqlite3 as _sq
+        _db = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'trading_data.db'))
+        try:
+            _conn = _sq.connect(_db)
+            existing = {row[1] for row in _conn.execute("PRAGMA table_info(trade_history)")}
+            novas = {
+                "symbol":              "TEXT",
+                "timeframe":           "TEXT",
+                "result":              "TEXT",
+                "profit_pct":          "REAL",
+                "profit_usdt":         "REAL",
+                "paper_balance_after": "REAL",
+                "event":               "TEXT DEFAULT 'ENTRY'",
+            }
+            for col, tipo in novas.items():
+                if col not in existing:
+                    _conn.execute(f"ALTER TABLE trade_history ADD COLUMN {col} {tipo}")
+                    print(f"  ↳ DB Migração: coluna '{col}' adicionada.")
+            _conn.commit()
+            _conn.close()
+        except Exception as _e:
+            print(f"  Aviso migração DB: {_e}")
 
     def _log_to_journal(self, trade_data):
         with open(self.journal_file, 'a', encoding='utf-8') as f:
