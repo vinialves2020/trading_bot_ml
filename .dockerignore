@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+.openclaude
+notebooks
+scripts_agentes
+data
+*.log
+*.html
+*.txt
+!requirements.txt
+__pycache__
+*.pyc
+finbert_training_prompt.md
+prompt.md

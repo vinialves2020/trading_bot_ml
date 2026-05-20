@@ -1,9 +1,23 @@
-/.openclaude
-/finbert_training_prompt.md
-/notebooks
-/Novo(a) Documento de Texto.txt
-/prompt.md
-/resposta.txt
-data/*.db
-data/*.db.db
-data/trade_journal.jsonl
+# IDEs and environments
+.openclaude
+__pycache__/
+*.pyc
+*.env
+.venv/
+venv/
+
+# Logs and HTML Reports
+*.log
+*.html
+*.txt
+!requirements.txt
+
+# Databases and data
+data/*
+!data/models_weights/
+
+# Exclude unnecessary prompt files and scripts
+finbert_training_prompt.md
+prompt.md
+notebooks/
+scripts_agentes/
