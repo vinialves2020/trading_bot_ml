@@ -1,10 +1,19 @@
 version: '3.8'
 
 services:
-  trading-bot:
+  oraculo_btc:
     build: .
     container_name: oraculo_btc_bot
     restart: unless-stopped
+    command: python src/bot_executor.py --symbol BTC/USDT --timeframe 15m --paper
+    volumes:
+      - ./data:/app/data  # Sincroniza a pasta data do container com a AWS
+
+  oraculo_eth:
+    build: .
+    container_name: oraculo_eth_bot
+    restart: unless-stopped
+    command: python src/bot_executor.py --symbol ETH/USDT --timeframe 1h --paper
     volumes:
       - ./data:/app/data  # Sincroniza a pasta data do container com a AWS
 
@@ -19,4 +28,5 @@ services:
     volumes:
       - ./data:/app/data  # Lê a mesma pasta que o bot escreve
     depends_on:
-      - trading-bot
+      - oraculo_btc
+      - oraculo_eth

@@ -17,8 +17,10 @@ from xgboost import XGBClassifier
 import lightgbm as lgb
 
 class TradingBot:
-    def __init__(self, symbol='BTC/USDT', threshold=0.60, paper_trading=True):
+    def __init__(self, symbol='BTC/USDT', timeframe='15m', threshold=0.60, paper_trading=True):
         self.symbol = symbol
+        self.timeframe = timeframe
+        self.prefix = f"{symbol.split('/')[0].lower()}_{timeframe}"
         self.threshold = threshold
         self.paper_trading = paper_trading
         self.db_manager = DatabaseManager('data/trading_data.db')
@@ -50,13 +52,13 @@ class TradingBot:
         base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         model_dir = os.path.join(base_path, "data", "models_weights")
 
-        model_path = os.path.join(model_dir, "xgb_oraculo_btc.json")
+        model_path = os.path.join(model_dir, f"xgb_oraculo_{self.prefix}.json")
         if not os.path.exists(model_path):
             raise FileNotFoundError(f" Modelo nao encontrado em: {model_path}")
         self.model = XGBClassifier()
         self.model.load_model(model_path)
 
-        magnitude_path = os.path.join(model_dir, "lgbm_magnitude_btc.txt")
+        magnitude_path = os.path.join(model_dir, f"lgbm_magnitude_{self.prefix}.txt")
         self.magnitude_available = False
         if os.path.exists(magnitude_path):
             try:
@@ -69,7 +71,7 @@ class TradingBot:
         self.features_list = FeatureEngineer.get_feature_list()
 
         self.kelly_fraction = 0.02
-        metrics_path = os.path.join(base_path, "data", "training_metrics.json")
+        metrics_path = os.path.join(base_path, "data", f"training_metrics_{self.prefix}.json")
         if os.path.exists(metrics_path):
             import json
             with open(metrics_path) as f:
@@ -77,10 +79,13 @@ class TradingBot:
                 self.kelly_fraction = metrics.get('kelly_fraction') or 0.02
                 print(f" Kelly Criterion: {self.kelly_fraction*100:.2f}% (do treino)")
 
-        self.tp_pct = 0.006   # 0.6%
-        self.sl_pct = 0.003   # 0.3%
-        self.break_even_trigger_pct = 0.0045 # 0.45% de lucro ativa a proteção
-        self.break_even_target_pct = 0.0010 # Move o stop para a entrada + 0.1%
+        if self.timeframe == '1h':
+            self.break_even_trigger_pct = 0.010
+            self.break_even_target_pct = 0.002
+        else:
+            self.break_even_trigger_pct = 0.0045 # 0.45% de lucro ativa a proteção
+            self.break_even_target_pct = 0.0010 # Move o stop para a entrada + 0.1%
+
         self.fee_rate = 0.001 # 0.1% Taxa
         self.max_risk_per_trade = self.kelly_fraction
         self.max_daily_drawdown = 0.05
@@ -125,7 +130,7 @@ class TradingBot:
 
     def _get_realtime_data(self):
         try:
-            ohlcv = self.exchange.fetch_ohlcv(self.symbol, timeframe='15m', limit=1000)
+            ohlcv = self.exchange.fetch_ohlcv(self.symbol, timeframe=self.timeframe, limit=1000)
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             df.set_index('timestamp', inplace=True)
@@ -216,7 +221,7 @@ class TradingBot:
         
     def run(self):
         mode_str = "PAPER TRADING" if self.paper_trading else "LIVE TRADING (SIMULATION)"
-        print(f" Bot de Scalping BTC/USDT 15m INICIADO ({mode_str} - Binance)")
+        print(f" Bot de Scalping {self.symbol} {self.timeframe} INICIADO ({mode_str} - Binance)")
         print(f" Threshold: {self.threshold*100:.0f}%")
         print(f" Risco maximo: {self.max_risk_per_trade*100:.0f}% por operacao | Drawdown: -{self.max_daily_drawdown*100:.0f}%")
 
@@ -234,14 +239,17 @@ class TradingBot:
                     continue
 
                 if self.open_order is None:
-                    # ESTADO A: Buscando Sinal (Apenas no fechamento de cada 15m)
+                    # ESTADO A: Buscando Sinal
                     now = datetime.now(timezone.utc)
-                    min_to_next_15 = 15 - (now.minute % 15)
-                    next_run = now.replace(second=0, microsecond=0) + timedelta(minutes=min_to_next_15)
+                    if self.timeframe == '1h':
+                        min_to_next = 60 - now.minute
+                    else:
+                        min_to_next = 15 - (now.minute % 15)
+                    next_run = now.replace(second=0, microsecond=0) + timedelta(minutes=min_to_next)
                     sleep_seconds = (next_run - now).total_seconds() + 5 
                     
                     if sleep_seconds > 0:
-                        print(f"⏳ Aguardando proximo candle de 15m... Dormindo {sleep_seconds/60:.2f} min.")
+                        print(f"⏳ Aguardando proximo candle de {self.timeframe}... Dormindo {sleep_seconds/60:.2f} min.")
                         import gc
                         gc.collect()
                         time.sleep(sleep_seconds)
@@ -281,7 +289,8 @@ class TradingBot:
                             side = 'LONG'
 
                             current_atr = float(closed_candle.get('ATRr_14', entry_price * 0.002)) 
-                            min_atr_usdt = entry_price * 0.003
+                            min_atr_pct = 0.005 if self.timeframe == '1h' else 0.003
+                            min_atr_usdt = entry_price * min_atr_pct
                             atr_to_use = max(current_atr, min_atr_usdt)
 
                             stop_loss = entry_price - (atr_to_use * 1.5)
@@ -440,7 +449,9 @@ class TradingBot:
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description='BTC Scalping Bot 15m')
+    parser = argparse.ArgumentParser(description='Multi-Coin Trading Bot')
+    parser.add_argument('--symbol', type=str, default='BTC/USDT', help='Simbolo para operar (ex: BTC/USDT, ETH/USDT)')
+    parser.add_argument('--timeframe', type=str, default='15m', help='Timeframe (ex: 15m, 1h)')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--paper', action='store_true', help='Paper Trading (simulacao, default)')
     group.add_argument('--live', action='store_true', help='Executar com capital real (Simulado sem envio da API)')
@@ -448,5 +459,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     paper_trading = not args.live
-    bot = TradingBot(threshold=args.threshold, paper_trading=paper_trading)
+    bot = TradingBot(symbol=args.symbol, timeframe=args.timeframe, threshold=args.threshold, paper_trading=paper_trading)
     bot.run()

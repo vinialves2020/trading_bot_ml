@@ -11,15 +11,27 @@ from src.data_pipeline.fetcher import BinanceDataFetcher
 from src.data_pipeline.features import FeatureEngineer
 from src.data_pipeline.database import DatabaseManager
 
+import argparse
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--symbol', type=str, default='BTC/USDT', help='Ex: BTC/USDT, ETH/USDT')
+    parser.add_argument('--timeframe', type=str, default='15m', help='Ex: 15m, 1h')
+    args = parser.parse_args()
+
+    symbol = args.symbol
+    timeframe = args.timeframe
+    prefix = f"{symbol.split('/')[0].lower()}_{timeframe}"
+    
     print("=" * 60)
-    print(" PIPELINE COMPLETO: DADOS -> FEATURES -> BANCO")
+    print(f" PIPELINE COMPLETO: {symbol} no timeframe {timeframe}")
     print("=" * 60)
 
-    # 1. Baixar dados
     print("\n[1/3] Baixando dados da Binance...")
-    fetcher = BinanceDataFetcher(symbol='BTC/USDT', timeframe='15m')
-    df_raw = fetcher.fetch_deep_history(start_date_str="2024-01-01 00:00:00")
+    fetcher = BinanceDataFetcher(symbol=symbol, timeframe=timeframe)
+    # Baixa histórico maior para gráfico de 1h
+    start_date = "2023-01-01 00:00:00" if timeframe == '1h' else "2024-01-01 00:00:00"
+    df_raw = fetcher.fetch_deep_history(start_date_str=start_date)
 
     if df_raw is None or len(df_raw) == 0:
         print(" Erro: Nao foi possivel baixar dados.")
@@ -27,30 +39,36 @@ def main():
 
     print(f" Dados baixados: {len(df_raw)} candles")
 
-    # 2. Salvar raw no banco
     db = DatabaseManager('data/trading_data.db')
-    db.save_data(df_raw, 'btc_15m_raw', if_exists='replace')
+    db.save_data(df_raw, f"{prefix}_raw", if_exists='replace')
 
-    # 3. Criar features
     print("\n[2/3] Calculando indicadores tecnicos...")
     df_features = FeatureEngineer.apply_indicators(df_raw.copy())
 
-    # Criar target (Triple Barrier alinhado)
-    df_features = FeatureEngineer.create_target(df_features, horizon=16, profit_target=0.004, stop_loss=0.002)
+    if timeframe == '1h':
+        # 1H precisa de alvos maiores e menos candles de horizonte (8 candles = 8 horas)
+        horizon = 8
+        tp = 0.015 # 1.5%
+        sl = 0.0075 # 0.75%
+    else:
+        horizon = 16
+        tp = 0.004
+        sl = 0.002
+
+    df_features = FeatureEngineer.create_target(df_features, horizon=horizon, profit_target=tp, stop_loss=sl)
 
     print(f" Features calculadas: {len(df_features.columns)} colunas")
     print(f" Linhas prontas: {len(df_features)}")
 
-    # 4. Salvar com features no banco
-    db.save_data(df_features, 'btc_15m_features', if_exists='replace')
+    db.save_data(df_features, f"{prefix}_features", if_exists='replace')
 
     print("\n[3/3] Salvando no banco...")
-    print(f" Tabela 'btc_15m_features' criada com {len(df_features)} linhas")
+    print(f" Tabela '{prefix}_features' criada com sucesso")
 
     print("\n" + "="*60)
     print(" PIPELINE CONCLUIDO!")
     print("="*60)
-    print("\n Agora rode: python src/models/train_xgb.py")
+    print(f"\n Agora rode: python src/models/train_xgb.py --symbol {symbol} --timeframe {timeframe}")
 
 if __name__ == "__main__":
     main()

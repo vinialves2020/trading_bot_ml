@@ -13,6 +13,7 @@ import sys
 from datetime import datetime
 from xgboost import XGBClassifier
 import lightgbm as lgb
+import argparse
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
@@ -156,22 +157,34 @@ def evaluate_with_sharpe(y_true, y_pred, returns=None):
     }
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--symbol', type=str, default='BTC/USDT')
+    parser.add_argument('--timeframe', type=str, default='15m')
+    args = parser.parse_args()
+
+    symbol = args.symbol
+    timeframe = args.timeframe
+    prefix = f"{symbol.split('/')[0].lower()}_{timeframe}"
+
     print("=" * 60)
-    print(" REFATORACAO DO TREINO (finbert_training_prompt.md)")
+    print(f" TREINAMENTO XGBOOST/LGBM: {symbol} - {timeframe}")
     print("=" * 60)
 
     db = DatabaseManager('data/trading_data.db')
-    df = db.load_data('btc_15m_features')
+    df = db.load_data(f'{prefix}_features')
 
     if df is None or len(df) == 0:
-        print(" Erro: Sem dados. Execute o pipeline.py primeiro.")
+        print(f" Erro: Sem dados para {prefix}. Execute o pipeline.py primeiro.")
         return
 
     print(f" Dados carregados: {len(df)} candles")
     print(f" Periodo: {df.index[0]} a {df.index[-1]}")
 
-    # Aumentar horizonte para 6h (24 candles de 15m) - mais tempo para o preço se mover
-    df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.006, stop_loss=0.003)
+    if timeframe == '1h':
+        df = FeatureEngineer.create_target(df, horizon=8, profit_target=0.015, stop_loss=0.0075)
+    else:
+        # Aumentar horizonte para 6h (24 candles de 15m) - mais tempo para o preço se mover
+        df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.006, stop_loss=0.003)
 
     print(f"\n Walk-Forward Validation (5 splits)...")
     features_list = FeatureEngineer.get_feature_list()
@@ -261,12 +274,12 @@ def main():
     models_dir = os.path.join(base_path, "data", "models_weights")
     os.makedirs(models_dir, exist_ok=True)
 
-    direction_path = os.path.join(models_dir, "xgb_oraculo_btc.json")
+    direction_path = os.path.join(models_dir, f"xgb_oraculo_{prefix}.json")
     final_direction.save_model(direction_path)
     print(f" Modelo Direcao salvo: {direction_path}")
 
     if final_magnitude:
-        magnitude_path = os.path.join(models_dir, "lgbm_magnitude_btc.txt")
+        magnitude_path = os.path.join(models_dir, f"lgbm_magnitude_{prefix}.txt")
         final_magnitude.booster_.save_model(magnitude_path)
         print(f" Modelo Magnitude salvo: {magnitude_path}")
 
@@ -294,7 +307,7 @@ def main():
         }
 
         import json
-        metrics_path = os.path.join(base_path, "data", "training_metrics.json")
+        metrics_path = os.path.join(base_path, "data", f"training_metrics_{prefix}.json")
         with open(metrics_path, 'w') as f:
             json.dump(metrics_summary, f, indent=2)
 
