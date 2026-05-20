@@ -46,6 +46,23 @@ def criar_tabela(conn):
     """)
     conn.commit()
 
+    # Migração: adiciona colunas novas se o banco já existia com schema antigo
+    colunas_existentes = {row[1] for row in conn.execute("PRAGMA table_info(trade_history)")}
+    migracoes = {
+        "symbol":              "TEXT",
+        "timeframe":           "TEXT",
+        "result":              "TEXT",
+        "profit_pct":          "REAL",
+        "profit_usdt":         "REAL",
+        "paper_balance_after": "REAL",
+        "event":               "TEXT DEFAULT 'ENTRY'",
+    }
+    for col, tipo in migracoes.items():
+        if col not in colunas_existentes:
+            conn.execute(f"ALTER TABLE trade_history ADD COLUMN {col} {tipo}")
+            print(f"  ↳ Migração: coluna '{col}' adicionada.")
+    conn.commit()
+
 def seed(n_trades_por_moeda=6):
     os.makedirs("data", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
