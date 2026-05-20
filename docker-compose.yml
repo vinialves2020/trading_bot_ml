@@ -3,6 +3,7 @@ version: '3.8'
 services:
   finbert_api:
     build: .
+    image: oraculo_base_image:latest
     container_name: finbert_api
     restart: unless-stopped
     command: uvicorn src.api_finbert:app --host 0.0.0.0 --port 8000
@@ -10,7 +11,7 @@ services:
       - "8000:8000"
 
   oraculo_btc:
-    build: .
+    image: oraculo_base_image:latest
     container_name: oraculo_btc_bot
     restart: unless-stopped
     command: python src/bot_executor.py --symbol BTC/USDT --timeframe 15m --paper
@@ -20,7 +21,7 @@ services:
       - finbert_api
 
   oraculo_eth:
-    build: .
+    image: oraculo_base_image:latest
     container_name: oraculo_eth_bot
     restart: unless-stopped
     command: python src/bot_executor.py --symbol ETH/USDT --timeframe 1h --paper
@@ -30,7 +31,7 @@ services:
       - finbert_api
 
   oraculo_sol:
-    build: .
+    image: oraculo_base_image:latest
     container_name: oraculo_sol_bot
     restart: unless-stopped
     command: python src/bot_executor.py --symbol SOL/USDT --timeframe 15m --paper
@@ -40,7 +41,7 @@ services:
       - finbert_api
 
   dashboard:
-    build: .
+    image: oraculo_base_image:latest
     container_name: oraculo_dashboard
     restart: unless-stopped
     command: streamlit run src/dashboard.py --server.port=8501 --server.address=0.0.0.0
