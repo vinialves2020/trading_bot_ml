@@ -20,4 +20,6 @@ data/*
 finbert_training_prompt.md
 prompt.md
 notebooks/
-scripts_agentes/
+# Allow only the seed script inside scripts_agentes
+scripts_agentes/*
+!scripts_agentes/seed_fake_trades.py
