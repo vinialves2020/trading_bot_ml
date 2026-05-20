@@ -41,10 +41,11 @@ class TradingBot:
         # FinBERT Sentiment (carregamento tardio)
         self.finbert_available = False
         try:
-            from src.models.finbert_sentiment import analisar_sentimento_btc
-            self._get_sentiment = analisar_sentimento_btc
+            from src.models.finbert_sentiment import FinBERTSentiment
+            sentiment_client = FinBERTSentiment()
+            self._get_sentiment = lambda: sentiment_client.analisar_sentimento(self.symbol)
             self.finbert_available = True
-            print(" FinBERT disponvel para anlise de sentimento")
+            print(" FinBERT disponvel para anlise de sentimento (via API)")
         except ImportError:
             print(" Aviso: FinBERT no disponvel. Instale: pip install transformers torch")
 

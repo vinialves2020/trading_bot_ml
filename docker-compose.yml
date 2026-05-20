@@ -1,13 +1,23 @@
 version: '3.8'
 
 services:
+  finbert_api:
+    build: .
+    container_name: finbert_api
+    restart: unless-stopped
+    command: uvicorn src.api_finbert:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+
   oraculo_btc:
     build: .
     container_name: oraculo_btc_bot
     restart: unless-stopped
     command: python src/bot_executor.py --symbol BTC/USDT --timeframe 15m --paper
     volumes:
-      - ./data:/app/data  # Sincroniza a pasta data do container com a AWS
+      - ./data:/app/data
+    depends_on:
+      - finbert_api
 
   oraculo_eth:
     build: .
@@ -15,18 +25,30 @@ services:
     restart: unless-stopped
     command: python src/bot_executor.py --symbol ETH/USDT --timeframe 1h --paper
     volumes:
-      - ./data:/app/data  # Sincroniza a pasta data do container com a AWS
+      - ./data:/app/data
+    depends_on:
+      - finbert_api
+
+  oraculo_sol:
+    build: .
+    container_name: oraculo_sol_bot
+    restart: unless-stopped
+    command: python src/bot_executor.py --symbol SOL/USDT --timeframe 15m --paper
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - finbert_api
 
   dashboard:
     build: .
     container_name: oraculo_dashboard
     restart: unless-stopped
-    # Roda o Streamlit em vez do bot
     command: streamlit run src/dashboard.py --server.port=8501 --server.address=0.0.0.0
     ports:
       - "80:8501"
     volumes:
-      - ./data:/app/data  # Lê a mesma pasta que o bot escreve
+      - ./data:/app/data
     depends_on:
       - oraculo_btc
       - oraculo_eth
+      - oraculo_sol
