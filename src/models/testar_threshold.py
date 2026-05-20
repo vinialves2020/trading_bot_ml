@@ -21,9 +21,8 @@ def main():
         print(" Erro: Sem dados. Execute pipeline.py primeiro.")
         return
 
-    # Recria target se nao existir
-    if 'target' not in df.columns:
-        df = FeatureEngineer.create_target(df, horizon=24, profit_target=0.004, stop_loss=0.002)
+    # Recria target se nao existir ou estiver desatualizado
+    df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.006, stop_loss=0.003)
 
     features = FeatureEngineer.get_feature_list()
     available_features = [f for f in features if f in df.columns]

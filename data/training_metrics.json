@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-05-19T22:05:41.858317",
+  "timestamp": "2026-05-19T22:41:39.088621",
   "model_type": "XGBoost_Direction + LightGBM_Magnitude",
   "walk_forward_splits": 5,
   "avg_sharpe_ratio": 17.481155239251557,
   "avg_sortino_ratio": 31.012790160899918,
   "avg_max_drawdown": 0.5147555337154441,
-  "kelly_fraction": 0.0,
+  "kelly_fraction": 0.25,
   "features_count": 22
 }
