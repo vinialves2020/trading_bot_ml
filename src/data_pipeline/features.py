@@ -114,8 +114,8 @@ class FeatureEngineer:
         return df
 
     @staticmethod
-    def create_target(df, horizon=16, profit_target=0.009, stop_loss=0.003):
-        print(f" 🎯 Gerando Target (Triple Barrier) com Alvo: {profit_target*100:.1f}%, Stop: {stop_loss*100:.1f}%, Horizonte: {horizon} velas...")
+    def create_target(df, horizon=16, profit_target=0.006, stop_loss=0.003):
+        print(f" Gerando Target (Triple Barrier) com Alvo: {profit_target*100:.1f}%, Stop: {stop_loss*100:.1f}%, Horizonte: {horizon} velas...")
         df = df.copy()
         
         # Converte para arrays do numpy para processamento ultrarrápido

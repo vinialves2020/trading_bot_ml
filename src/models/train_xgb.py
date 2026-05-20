@@ -170,7 +170,7 @@ def main():
     print(f" Periodo: {df.index[0]} a {df.index[-1]}")
 
     # Aumentar horizonte para 6h (24 candles de 15m) - mais tempo para o preço se mover
-    df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.009, stop_loss=0.003)
+    df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.006, stop_loss=0.003)
 
     print(f"\n Walk-Forward Validation (5 splits)...")
     features_list = FeatureEngineer.get_feature_list()
@@ -232,14 +232,19 @@ def main():
     X_final = X.fillna(0)
     y_final = y.fillna(0)
 
-    # Melhores parametros encontrados pelo Optuna (Trial 14)
+    # Calcular peso correto com base na distribuição final
+    neg_final = (y_final == 0).sum()
+    pos_final = (y_final == 1).sum()
+    final_scale = neg_final / pos_final if pos_final > 0 else 1.0
+
+    # Melhores parametros encontrados pelo Optuna (Trial 14) + scale_pos_weight adaptativo
     best_params = {
         'n_estimators': 217,
         'max_depth': 6,
         'learning_rate': 0.0215,
         'subsample': 0.6869,
         'colsample_bytree': 0.5041,
-        'scale_pos_weight': 5.7684,
+        'scale_pos_weight': final_scale,
         'random_state': 42,
         'n_jobs': -1
     }

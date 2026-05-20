@@ -17,7 +17,7 @@ from xgboost import XGBClassifier
 import lightgbm as lgb
 
 class TradingBot:
-    def __init__(self, symbol='BTC/USDT', threshold=0.70, paper_trading=True):
+    def __init__(self, symbol='BTC/USDT', threshold=0.60, paper_trading=True):
         self.symbol = symbol
         self.threshold = threshold
         self.paper_trading = paper_trading
@@ -306,7 +306,7 @@ class TradingBot:
                 macro_trend_direction = self._check_macro_trend()
 
                 # --- LÓGICA DE ABERTURA DE ORDEM ---
-                if self.open_order is None and prob >= self.threshold and adx_value >= 25:
+                if self.open_order is None and prob >= self.threshold and adx_value >= 20:
                     
                     if macro_trend_direction >= 0: # 1 (Alta) ou 0 (Neutro)
                         entry_price = closed_candle['close']
@@ -355,8 +355,8 @@ class TradingBot:
                     else:
                         print(f" 🛑 SINAL IGNORADO: Conflito Macro. 15m pede LONG, mas 4H esta em tendencia de BAIXA.")
 
-                elif self.open_order is None and prob >= self.threshold and adx_value < 25:
-                    print(f" ⏸️ Mercado lateral (ADX < 25) - Sinal ignorado | ADX: {adx_value:.2f} | Conf: {prob:.2%}")
+                elif self.open_order is None and prob >= self.threshold and adx_value < 20:
+                    print(f" ⏸️ Mercado lateral (ADX < 20) - Sinal ignorado | ADX: {adx_value:.2f} | Conf: {prob:.2%}")
 
                 # --- LÓGICA DE GESTÃO DA ORDEM ABERTA ---
                 elif self.open_order:
@@ -512,7 +512,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--paper', action='store_true', help='Paper Trading (simulacao, default)')
     group.add_argument('--live', action='store_true', help='Executar com capital real')
-    parser.add_argument('--threshold', type=float, default=0.70, help='Confianca minima (default: 0.70)')
+    parser.add_argument('--threshold', type=float, default=0.60, help='Confianca minima (default: 0.60)')
     args = parser.parse_args()
 
     # Default: Paper Trading (se nenhum modo especificado ou se --paper)
