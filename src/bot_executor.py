@@ -118,10 +118,12 @@ class TradingBot:
         self._init_log_table()
 
     def _init_log_table(self):
-        self.db_manager.execute_query("DROP TABLE IF EXISTS trade_history")
+        # USA 'IF NOT EXISTS' para NAO apagar os trades dos outros bots ao reiniciar
         query = """
-        CREATE TABLE trade_history (
+        CREATE TABLE IF NOT EXISTS trade_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT,
+            timeframe TEXT,
             timestamp DATETIME,
             side TEXT,
             entry_price REAL,
@@ -129,7 +131,11 @@ class TradingBot:
             stop_loss REAL,
             confidence REAL,
             position_size_usdt REAL,
-            status TEXT DEFAULT 'OPEN'
+            result TEXT,
+            profit_pct REAL,
+            profit_usdt REAL,
+            paper_balance_after REAL,
+            event TEXT DEFAULT 'ENTRY'
         )
         """
         self.db_manager.execute_query(query)
@@ -328,6 +334,31 @@ class TradingBot:
                                 'break_even_activated': False
                             }
 
+                            # Registra o sinal de entrada no banco com o simbolo correto
+                            self.db_manager.execute_query(
+                                """INSERT INTO trade_history
+                                   (symbol, timeframe, timestamp, side, entry_price, take_profit, stop_loss, confidence, position_size_usdt, event)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ENTRY')""",
+                                (self.symbol, self.timeframe, datetime.now(timezone.utc).isoformat(),
+                                 side, entry_price, take_profit, stop_loss, prob, position_size_usdt)
+                            )
+
+                            try:
+                                self._log_to_journal({
+                                    'event': 'ENTRY',
+                                    'symbol': self.symbol,
+                                    'timeframe': self.timeframe,
+                                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                                    'side': side,
+                                    'entry_price': entry_price,
+                                    'limit_price': limit_price,
+                                    'take_profit': take_profit,
+                                    'stop_loss': stop_loss,
+                                    'confidence': prob,
+                                    'position_size_usdt': position_size_usdt,
+                                })
+                            except: pass
+
                             print(f" SINAL [{side}] | Conf: {prob:.2%} | Limit Maker: ${limit_price:.2f} | TP: ${take_profit:.2f} | SL: ${stop_loss:.2f}")
                             
                             # Pequeno delay antes de transicionar pro Estado B
@@ -371,6 +402,8 @@ class TradingBot:
                                 try:
                                     self._log_to_journal({
                                         'event': 'ORDER_FALLBACK',
+                                        'symbol': self.symbol,
+                                        'timeframe': self.timeframe,
                                         'timestamp': datetime.now(timezone.utc).isoformat(),
                                         'market_price': current_price,
                                         'reason': 'Timeout Limit',
@@ -425,20 +458,28 @@ class TradingBot:
                             else:
                                 print(f"💰 ORDEM FECHADA [{result}] | Preco: ${current_price:.2f} | PnL Liquido: {profit_pct:.2f}%")
 
+                            # Atualiza o registro de ENTRY com os dados do fechamento
                             self.db_manager.execute_query(
-                                "UPDATE trade_history SET status = ? WHERE id = (SELECT MAX(id) FROM trade_history)",
-                                (result,)
+                                """UPDATE trade_history SET result = ?, profit_pct = ?, profit_usdt = ?,
+                                   paper_balance_after = ?, event = 'CLOSE'
+                                   WHERE id = (SELECT MAX(id) FROM trade_history WHERE symbol = ?)""",
+                                (result, profit_pct,
+                                 profit_usdt if self.paper_trading else None,
+                                 self.paper_balance if self.paper_trading else None,
+                                 self.symbol)
                             )
 
                             try:
                                 self._log_to_journal({
                                     'event': 'CLOSE',
+                                    'symbol': self.symbol,
+                                    'timeframe': self.timeframe,
                                     'timestamp': datetime.now(timezone.utc).isoformat(),
                                     'result': result,
                                     'exit_price': current_price,
                                     'profit_pct': profit_pct,
                                     'profit_usdt': profit_usdt if self.paper_trading else None,
-                                    'paper_balance': self.paper_balance if self.paper_trading else None
+                                    'paper_balance_after': self.paper_balance if self.paper_trading else None
                                 })
                             except: pass
 
