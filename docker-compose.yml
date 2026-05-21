@@ -31,7 +31,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 250M
+          memory: 400M
           cpus: '0.4'
 
   oraculo_eth:
@@ -46,7 +46,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 250M
+          memory: 400M
           cpus: '0.4'
 
   oraculo_sol:
@@ -61,7 +61,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 250M
+          memory: 400M
           cpus: '0.4'
 
   dashboard:
