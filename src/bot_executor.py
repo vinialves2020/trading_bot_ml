@@ -94,7 +94,7 @@ class TradingBot:
                 model_path = fallback_path
             else:
                 raise FileNotFoundError(f" Modelo nao encontrado em: {model_path}")
-        self.model = XGBClassifier()
+        self.model = XGBClassifier(n_jobs=1)  # Limita threads para economizar RAM
         self.model.load_model(model_path)
 
         magnitude_path = os.path.join(model_dir, f"lgbm_magnitude_{self.prefix}.txt")
@@ -113,6 +113,16 @@ class TradingBot:
                 print(f" Aviso: Magnitude nao carregada: {e}")
 
         self.features_list = FeatureEngineer.get_feature_list()
+
+        # ── WARM-UP (Aquecimento da IA) ──
+        # Força o XGBoost a alocar seus buffers de memória agora, para não crashar após o primeiro sleep
+        try:
+            print(" 🧠 Realizando aquecimento do modelo (Dummy Inference)...")
+            dummy_features = np.zeros((1, len(self.features_list)))
+            self.model.predict_proba(dummy_features)
+            print(" ✅ Aquecimento concluído. Memória alocada com sucesso.")
+        except Exception as e:
+            print(f" Aviso durante aquecimento: {e}")
 
         self.kelly_fraction = 0.02
         metrics_path = os.path.join(base_path, "data", f"training_metrics_{self.prefix}.json")
