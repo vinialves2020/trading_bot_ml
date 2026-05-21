@@ -29,7 +29,7 @@ class FinBERTSentiment:
         url = f"{base}/{symbol.replace('/', '_')}"
         
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=30)
             if response.status_code == 200:
                 data = response.json()
                 return data.get("score", 0.0)
