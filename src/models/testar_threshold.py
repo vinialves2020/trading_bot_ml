@@ -4,71 +4,125 @@ from xgboost import XGBClassifier
 from sklearn.metrics import precision_score, recall_score, confusion_matrix
 import sys
 import os
+import argparse
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from src.data_pipeline.database import DatabaseManager
 from src.data_pipeline.features import FeatureEngineer
 
-def main():
-    print(" Calibrando a Confiana da Inteligncia Artificial...")
+def evaluate_threshold(probabilidades, y_test, threshold, profit_target, stop_loss, fee=0.002):
+    decisoes = (probabilidades >= threshold).astype(int)
+    
+    if np.sum(decisoes) == 0:
+        return {"threshold": threshold, "trades": 0}
+        
+    cm = confusion_matrix(y_test, decisoes)
+    if cm.shape == (2, 2):
+        acertos = cm[1][1]
+        erros = cm[0][1]
+    else:
+        acertos = np.sum(y_test[decisoes == 1] == 1)
+        erros = np.sum(y_test[decisoes == 1] == 0)
+        
+    total_trades = acertos + erros
+    win_rate = acertos / total_trades if total_trades > 0 else 0
+    
+    # Net Reward / Risk (subtraindo taxas da Binance)
+    net_reward = profit_target - fee
+    net_risk = stop_loss + fee
+    
+    # Expectativa Matemática (EV)
+    ev = (win_rate * net_reward) - ((1 - win_rate) * net_risk)
+    
+    return {
+        "threshold": threshold,
+        "trades": total_trades,
+        "acertos": acertos,
+        "erros": erros,
+        "win_rate": win_rate,
+        "ev_percent": ev * 100 # % por trade
+    }
 
-    # 1. Carrega os dados da tabela correta
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--symbol', type=str, default='BTC/USDT')
+    parser.add_argument('--timeframe', type=str, default='15m')
+    args = parser.parse_args()
+
+    symbol = args.symbol
+    timeframe = args.timeframe
+    prefix = f"{symbol.split('/')[0].lower()}_{timeframe}"
+
+    print(f"\n========================================================")
+    print(f" Calibrando Confiança para: {symbol} - {timeframe} ")
+    print(f"========================================================")
+
     db = DatabaseManager('data/trading_data.db')
-    df = db.load_data('btc_15m_features')
+    df = db.load_data(f'{prefix}_features')
 
     if df is None or len(df) == 0:
         print(" Erro: Sem dados. Execute pipeline.py primeiro.")
         return
 
-    # Recria target se nao existir ou estiver desatualizado
-    df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.006, stop_loss=0.003)
+    # Sincronizar com os mesmos targets do bot_executor / train_xgb
+    if timeframe == '1h':
+        pt, sl = 0.015, 0.0075
+        horizon = 8
+    else:
+        pt, sl = 0.009, 0.0045
+        horizon = 32
+
+    print(f" Gerando Target -> TP: {pt*100:.2f}%, SL: {sl*100:.2f}%, Horizonte: {horizon} velas...")
+    df = FeatureEngineer.create_target(df, horizon=horizon, profit_target=pt, stop_loss=sl)
 
     features = FeatureEngineer.get_feature_list()
     available_features = [f for f in features if f in df.columns]
     df_clean = df[available_features + ['target']].dropna()
 
     X = df_clean[available_features]
-    
-    # Transforma o alvo em Binário: 1 (Vitória LONG) e 0 (Derrota ou Lateralização)
     y = (df_clean['target'] == 1).astype(int)
 
+    # Testar na janela final de dados (últimos 20%)
     train_size = int(len(df_clean) * 0.8)
     X_test, y_test = X.iloc[train_size:], y.iloc[train_size:]
 
-    # 2. Carrega o Modelo
-    model_path = "data/models_weights/xgb_oraculo_btc.json"
+    model_path = f"data/models_weights/xgb_oraculo_{prefix}.json"
     if not os.path.exists(model_path):
-        print(" Modelo nao encontrado! Rode train_xgb.py primeiro.")
+        print(f" Modelo {model_path} não encontrado! Rode train_xgb.py primeiro.")
         return
 
     model = XGBClassifier()
     model.load_model(model_path)
 
-    # 3. Pega as probabilidades
     probabilidades = model.predict_proba(X_test)[:, 1]
 
-    # 4. Teste de Filtros (Buscando ~50% de Win Rate / Precisao)
-    thresholds = [0.50, 0.60, 0.70, 0.80, 0.85, 0.90, 0.95]
+    thresholds = [0.50, 0.51, 0.52, 0.53, 0.54, 0.55, 0.57, 0.60]
 
-    print("\n========================================================")
-    print("  TESTE DE NIVEIS DE CONFIANCA (Buscando ~50% Win Rate) ")
-    print("========================================================")
-    print("Confiana | Precisao | Trades Acertados | Trades Errados")
-    print("--------------------------------------------------------")
+    print("\n--------------------------------------------------------------------------------")
+    print("Confiança | Win Rate | Trades  (Acerto/Erro) | EV (Líquido c/ Taxa) ")
+    print("--------------------------------------------------------------------------------")
+
+    melhor_t = None
+    melhor_ev = -999
 
     for t in thresholds:
-        decisoes = (probabilidades >= t).astype(int)
-
-        if np.sum(decisoes) > 0:
-            precisao = precision_score(y_test, decisoes, zero_division=0)
-            cm = confusion_matrix(y_test, decisoes)
-            acertos = cm[1][1] if cm.shape == (2, 2) else 0
-            erros = cm[0][1] if cm.shape == (2, 2) else 0
-
-            print(f"  {int(t*100)}%+    |   {precisao*100:.1f}%  |      {acertos}        |     {erros}")
+        res = evaluate_threshold(probabilidades, y_test, t, pt, sl)
+        if res['trades'] > 0:
+            ev_str = f"+{res['ev_percent']:.3f}%" if res['ev_percent'] > 0 else f"{res['ev_percent']:.3f}%"
+            print(f"  {int(t*100)}%+    |  {res['win_rate']*100:.1f}%   |   {res['trades']:>4}  ({res['acertos']:>3} / {res['erros']:>3})  |   {ev_str}")
+            
+            # Guardamos o threshold com melhor EV (desde que tenha um volume mínimo de trades para ser significante)
+            if res['ev_percent'] > melhor_ev and res['trades'] > 5:
+                melhor_ev = res['ev_percent']
+                melhor_t = t
         else:
-            print(f"  {int(t*100)}%+    |  0 trades realizados (Confiana muito alta)")
+            print(f"  {int(t*100)}%+    |    --    |      0                |   -- ")
+
+    if melhor_t:
+        print("\n========================================================")
+        print(f" [MELHOR] Threshold Recomendado: {int(melhor_t*100)}% (Melhor EV: +{melhor_ev:.3f}% por trade)")
+        print(f"========================================================\n")
 
 if __name__ == "__main__":
     main()
