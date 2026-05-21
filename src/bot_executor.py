@@ -378,13 +378,12 @@ class TradingBot:
                             entry_price = closed_candle['close']
                             side = 'LONG'
 
-                            current_atr = float(closed_candle.get('ATRr_14', entry_price * 0.002)) 
-                            min_atr_pct = 0.005 if self.timeframe == '1h' else 0.003
-                            min_atr_usdt = entry_price * min_atr_pct
-                            atr_to_use = max(current_atr, min_atr_usdt)
-
-                            stop_loss = entry_price - (atr_to_use * 1.5)
-                            take_profit = entry_price + (atr_to_use * 3.0)
+                            if self.timeframe == '1h':
+                                stop_loss = entry_price * (1 - 0.0075)
+                                take_profit = entry_price * (1 + 0.015)
+                            else:
+                                stop_loss = entry_price * (1 - 0.0045)
+                                take_profit = entry_price * (1 + 0.009)
 
                             qty_btc = self._calculate_position_size(entry_price, stop_loss)
                             position_size_usdt = qty_btc * entry_price 
@@ -580,7 +579,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--paper', action='store_true', help='Paper Trading (simulacao, default)')
     group.add_argument('--live', action='store_true', help='Executar com capital real (Simulado sem envio da API)')
-    parser.add_argument('--threshold', type=float, default=0.60, help='Confianca minima (default: 0.60)')
+    parser.add_argument('--threshold', type=float, default=0.53, help='Confianca minima (default: 0.53)')
     args = parser.parse_args()
 
     paper_trading = not args.live

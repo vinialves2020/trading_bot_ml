@@ -183,8 +183,8 @@ def main():
     if timeframe == '1h':
         df = FeatureEngineer.create_target(df, horizon=8, profit_target=0.015, stop_loss=0.0075)
     else:
-        # Aumentar horizonte para 6h (24 candles de 15m) - mais tempo para o preço se mover
-        df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.006, stop_loss=0.003)
+        # Alvo estático alinhado com o bot_executor para capturar mais oportunidades
+        df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.009, stop_loss=0.0045)
 
     print(f"\n Walk-Forward Validation (5 splits)...")
     features_list = FeatureEngineer.get_feature_list()
