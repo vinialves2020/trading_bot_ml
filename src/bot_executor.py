@@ -579,7 +579,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--paper', action='store_true', help='Paper Trading (simulacao, default)')
     group.add_argument('--live', action='store_true', help='Executar com capital real (Simulado sem envio da API)')
-    parser.add_argument('--threshold', type=float, default=0.53, help='Confianca minima (default: 0.53)')
+    parser.add_argument('--threshold', type=float, default=0.60, help='Confianca minima (default: 0.60)')
     args = parser.parse_args()
 
     paper_trading = not args.live
