@@ -53,7 +53,7 @@ services:
     image: oraculo_base_image:latest
     container_name: oraculo_sol_bot
     restart: unless-stopped
-    command: python src/bot_executor.py --symbol SOL/USDT --timeframe 15m --paper
+    command: python src/bot_executor.py --symbol SOL/USDT --timeframe 15m --paper --threshold 0.55
     volumes:
       - ./data:/app/data
     depends_on:
