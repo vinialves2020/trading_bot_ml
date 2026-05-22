@@ -186,9 +186,19 @@ with tab_trades:
         if "Data/Hora (UTC)" in df_display.columns:
             df_display = df_display.sort_values("Data/Hora (UTC)", ascending=False)
         if "Confiança IA" in df_display.columns:
-            df_display["Confiança IA"] = df_display["Confiança IA"].apply(
-                lambda x: f"{float(x)*100:.1f}%" if pd.notna(x) else ""
-            )
+            def format_conf(x):
+                if pd.isna(x): return ""
+                if isinstance(x, bytes):
+                    try:
+                        import numpy as np
+                        return f"{np.frombuffer(x, dtype=np.float32)[0]*100:.1f}%"
+                    except Exception:
+                        return "N/A"
+                try:
+                    return f"{float(x)*100:.1f}%"
+                except Exception:
+                    return "N/A"
+            df_display["Confiança IA"] = df_display["Confiança IA"].apply(format_conf)
         st.dataframe(df_display, use_container_width=True, hide_index=True)
 
 # ══════════════════════════════════════════════════════════════════════════════

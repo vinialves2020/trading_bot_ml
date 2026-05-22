@@ -353,7 +353,7 @@ class TradingBot:
 
                     closed_candle = df.iloc[-2]
                     features = closed_candle[self.features_list].values.reshape(1, -1)
-                    prob = self.model.predict_proba(features)[0][1]
+                    prob = float(self.model.predict_proba(features)[0][1])
 
                     adx_value = closed_candle.get('ADX_14', 0)
                     macro_trend_direction = self._check_macro_trend()
