@@ -124,34 +124,54 @@ class FeatureEngineer:
         highs = df['high'].values
         lows = df['low'].values
         
-        # Array vazio para guardar o gabarito
-        targets = np.full(len(df), np.nan)
+        # Arrays vazios para guardar os gabaritos
+        targets_long = np.full(len(df), np.nan)
+        targets_short = np.full(len(df), np.nan)
         
         # Loop veloz pelo histórico (ignora as últimas velas do horizonte)
         for i in range(len(df) - horizon):
             entry_price = closes[i]
-            tp_price = entry_price * (1 + profit_target)
-            sl_price = entry_price * (1 - stop_loss)
             
-            outcome = 0 # 0 = Timeout (Ficou lateral e não bateu nos alvos)
+            # Limites LONG
+            tp_price_long = entry_price * (1 + profit_target)
+            sl_price_long = entry_price * (1 - stop_loss)
+            
+            # Limites SHORT
+            tp_price_short = entry_price * (1 - profit_target)
+            sl_price_short = entry_price * (1 + stop_loss)
+            
+            outcome_long = 0
+            outcome_short = 0
             
             # Olha para o futuro (horizon)
             for j in range(1, horizon + 1):
                 idx = i + j
                 
-                # Regra de Ouro: O Stop Loss é prioridade. Se o pavio bater no Stop, aborta.
-                if lows[idx] <= sl_price:
-                    outcome = -1
-                    break
-                # Se o pavio bater no Take Profit sem bater no Stop antes:
-                elif highs[idx] >= tp_price:
-                    outcome = 1
+                # Avaliação do LONG
+                if outcome_long == 0:
+                    if lows[idx] <= sl_price_long:
+                        outcome_long = -1
+                    elif highs[idx] >= tp_price_long:
+                        outcome_long = 1
+                
+                # Avaliação do SHORT
+                if outcome_short == 0:
+                    if highs[idx] >= sl_price_short:  # Stop do SHORT é acima
+                        outcome_short = -1
+                    elif lows[idx] <= tp_price_short: # Take do SHORT é abaixo
+                        outcome_short = 1
+                        
+                # Se ambos já resolveram (ou bateram TP ou SL), pode parar o loop deste horizonte
+                if outcome_long != 0 and outcome_short != 0:
                     break
                     
-            targets[i] = outcome
+            targets_long[i] = outcome_long
+            targets_short[i] = outcome_short
             
         # Aplica o resultado de volta ao DataFrame
-        df['target'] = targets
+        df['target'] = targets_long # Para retro-compatibilidade
+        df['target_long'] = targets_long
+        df['target_short'] = targets_short
         
         return df
 

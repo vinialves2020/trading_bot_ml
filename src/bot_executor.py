@@ -96,6 +96,16 @@ class TradingBot:
                 raise FileNotFoundError(f" Modelo nao encontrado em: {model_path}")
         self.model = XGBClassifier(n_jobs=1)  # Limita threads para economizar RAM
         self.model.load_model(model_path)
+        
+        # Carregar Modelo SHORT (se existir)
+        self.model_short = None
+        model_short_path = os.path.join(model_dir, f"xgb_oraculo_{self.prefix}_short.json")
+        if os.path.exists(model_short_path):
+            self.model_short = XGBClassifier(n_jobs=1)
+            self.model_short.load_model(model_short_path)
+            print(" Modelo SHORT carregado.")
+        else:
+            print(" Aviso: Modelo SHORT nao encontrado, operando apenas LONG.")
 
         magnitude_path = os.path.join(model_dir, f"lgbm_magnitude_{self.prefix}.txt")
         if not os.path.exists(magnitude_path):
@@ -120,6 +130,8 @@ class TradingBot:
             print(" 🧠 Realizando aquecimento do modelo (Dummy Inference)...")
             dummy_features = np.zeros((1, len(self.features_list)))
             self.model.predict_proba(dummy_features)
+            if self.model_short:
+                self.model_short.predict_proba(dummy_features)
             print(" ✅ Aquecimento concluído. Memória alocada com sucesso.")
         except Exception as e:
             print(f" Aviso durante aquecimento: {e}")
@@ -353,42 +365,56 @@ class TradingBot:
 
                     closed_candle = df.iloc[-2]
                     features = closed_candle[self.features_list].values.reshape(1, -1)
-                    prob = float(self.model.predict_proba(features)[0][1])
+                    prob_long = float(self.model.predict_proba(features)[0][1])
+                    prob_short = float(self.model_short.predict_proba(features)[0][1]) if self.model_short else 0.0
 
                     adx_value = closed_candle.get('ADX_14', 0)
                     macro_trend_direction = self._check_macro_trend()
 
-                    print(f" {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC | Preco Fechamento: ${closed_candle['close']:.2f} | Confianca Base: {prob:.2%}")
+                    best_prob = max(prob_long, prob_short)
+                    chosen_side = 'LONG' if prob_long >= prob_short else 'SHORT'
+
+                    print(f" {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC | Preco: ${closed_candle['close']:.2f} | Conf LONG: {prob_long:.2%} | Conf SHORT: {prob_short:.2%}")
 
                     # FinBERT so e acionado se os filtros basicos passarem e a prob base estiver perto do gatilho 
                     min_prob_needed = self.threshold / 1.15
-                    if prob >= min_prob_needed and adx_value >= 20 and macro_trend_direction >= 0:
-                        if self.finbert_available:
+                    if best_prob >= min_prob_needed and adx_value >= 15:
+                        valid_macro = (chosen_side == 'LONG' and macro_trend_direction >= 0) or (chosen_side == 'SHORT' and macro_trend_direction <= 0)
+                        
+                        if valid_macro and self.finbert_available:
                             try:
-                                print(f" 🤖 Confianca na zona de gatilho ({prob:.2%}). Invocando FinBERT...")
+                                print(f" 🤖 Confianca na zona de gatilho ({best_prob:.2%}). Invocando FinBERT...")
                                 score_sent = self._get_sentiment()
-                                prob_adj = prob * (1 + 0.15 * score_sent)
-                                prob = prob_adj
-                                print(f" Confianca ajustada (c/ FinBERT): {prob:.2%}")
+                                multiplier = score_sent if chosen_side == 'LONG' else -score_sent
+                                best_prob = best_prob * (1 + 0.15 * multiplier)
+                                print(f" Confianca ajustada (c/ FinBERT): {best_prob:.2%}")
                             except Exception as e:
                                 pass
 
-                    if prob >= self.threshold and adx_value >= 20:
-                        if macro_trend_direction >= 0:
+                    if best_prob >= self.threshold and adx_value >= 15:
+                        valid_macro = (chosen_side == 'LONG' and macro_trend_direction >= 0) or (chosen_side == 'SHORT' and macro_trend_direction <= 0)
+                        if valid_macro:
                             entry_price = closed_candle['close']
-                            side = 'LONG'
+                            side = chosen_side
 
                             if self.timeframe == '1h':
-                                stop_loss = entry_price * (1 - 0.0075)
-                                take_profit = entry_price * (1 + 0.015)
+                                sl_pct = 0.0075
+                                tp_pct = 0.015
                             else:
-                                stop_loss = entry_price * (1 - 0.0045)
-                                take_profit = entry_price * (1 + 0.009)
+                                sl_pct = 0.0035 # Relaxado (menor risco unitario)
+                                tp_pct = 0.007  # Reduzido (maior frequencia de TP)
+
+                            if side == 'LONG':
+                                stop_loss = entry_price * (1 - sl_pct)
+                                take_profit = entry_price * (1 + tp_pct)
+                                limit_price = entry_price * 0.9998
+                            else:
+                                stop_loss = entry_price * (1 + sl_pct)
+                                take_profit = entry_price * (1 - tp_pct)
+                                limit_price = entry_price * 1.0002
 
                             qty_btc = self._calculate_position_size(entry_price, stop_loss)
                             position_size_usdt = qty_btc * entry_price 
-
-                            limit_price = entry_price * 0.9998 
                             
                             self.open_order = {
                                 'side': side,
@@ -396,7 +422,7 @@ class TradingBot:
                                 'limit_price': limit_price,
                                 'take_profit': take_profit,
                                 'stop_loss': stop_loss,
-                                'confidence': prob,
+                                'confidence': best_prob,
                                 'qty_btc': qty_btc,
                                 'position_size_usdt': position_size_usdt,
                                 'timestamp': datetime.now(timezone.utc),
@@ -413,7 +439,7 @@ class TradingBot:
                                    (symbol, timeframe, timestamp, side, entry_price, take_profit, stop_loss, confidence, position_size_usdt, event)
                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ENTRY')""",
                                 (self.symbol, self.timeframe, datetime.now(timezone.utc).isoformat(),
-                                 side, entry_price, take_profit, stop_loss, prob, position_size_usdt)
+                                 side, entry_price, take_profit, stop_loss, best_prob, position_size_usdt)
                             )
 
                             try:
@@ -427,19 +453,19 @@ class TradingBot:
                                     'limit_price': limit_price,
                                     'take_profit': take_profit,
                                     'stop_loss': stop_loss,
-                                    'confidence': prob,
+                                    'confidence': best_prob,
                                     'position_size_usdt': position_size_usdt,
                                 })
                             except: pass
 
-                            print(f" SINAL [{side}] | Conf: {prob:.2%} | Limit Maker: ${limit_price:.2f} | TP: ${take_profit:.2f} | SL: ${stop_loss:.2f}")
+                            print(f" SINAL [{side}] | Conf: {best_prob:.2%} | Limit Maker: ${limit_price:.2f} | TP: ${take_profit:.2f} | SL: ${stop_loss:.2f}")
                             
                             # Pequeno delay antes de transicionar pro Estado B
                             time.sleep(5)
                         else:
-                            print(f" 🛑 SINAL IGNORADO: Conflito Macro (Baixa).")
-                    elif prob >= self.threshold and adx_value < 20:
-                        print(f" ⏸️ Mercado lateral (ADX < 20) - Sinal ignorado | Conf: {prob:.2%}")
+                            print(f" 🛑 SINAL IGNORADO: Conflito Macro (Tendencia Oposta ao Sinal).")
+                    elif best_prob >= self.threshold and adx_value < 15:
+                        print(f" ⏸️ Mercado lateral (ADX < 15) - Sinal ignorado | Conf: {best_prob:.2%}")
                     else:
                         # Nenhum sinal, apenas espera o próximo candle no próximo loop
                         pass
@@ -460,7 +486,8 @@ class TradingBot:
                     if order['order_type'] == 'LIMIT' and not order['filled']:
                         limit_price = order['limit_price']
                         
-                        if order['side'] == 'LONG' and current_price <= limit_price:
+                        if (order['side'] == 'LONG' and current_price <= limit_price) or \
+                           (order['side'] == 'SHORT' and current_price >= limit_price):
                             order['filled'] = True
                             order['actual_entry_price'] = limit_price
                             print(f"✅ LIMIT ORDER PREENCHIDA em ${limit_price:.2f}!")
@@ -494,23 +521,36 @@ class TradingBot:
                         stop_loss = order['stop_loss']
                         
                         # Monitoramento Break-Even
-                        if not order['break_even_activated'] and order['side'] == 'LONG':
-                            trigger_price = entry_price * (1 + self.break_even_trigger_pct)
-                            if current_price >= trigger_price:
-                                new_stop_loss = entry_price * (1 + self.break_even_target_pct)
-                                order['stop_loss'] = new_stop_loss
-                                order['break_even_activated'] = True
-                                print(f"🛡️ BREAK-EVEN ATIVADO! Stop Loss subiu para: ${new_stop_loss:.2f}")
+                        if not order['break_even_activated']:
+                            if order['side'] == 'LONG':
+                                trigger_price = entry_price * (1 + self.break_even_trigger_pct)
+                                if current_price >= trigger_price:
+                                    new_stop_loss = entry_price * (1 + self.break_even_target_pct)
+                                    order['stop_loss'] = new_stop_loss
+                                    order['break_even_activated'] = True
+                                    print(f"🛡️ BREAK-EVEN ATIVADO! Stop Loss subiu para: ${new_stop_loss:.2f}")
+                            elif order['side'] == 'SHORT':
+                                trigger_price = entry_price * (1 - self.break_even_trigger_pct)
+                                if current_price <= trigger_price:
+                                    new_stop_loss = entry_price * (1 - self.break_even_target_pct)
+                                    order['stop_loss'] = new_stop_loss
+                                    order['break_even_activated'] = True
+                                    print(f"🛡️ BREAK-EVEN ATIVADO! Stop Loss desceu para: ${new_stop_loss:.2f}")
                                 
                         # Atualiza Stop_loss caso Break-Even ativado
                         stop_loss = order['stop_loss']
 
-                        hit_tp = current_price >= take_profit
-                        hit_sl = current_price <= stop_loss
+                        if order['side'] == 'LONG':
+                            hit_tp = current_price >= take_profit
+                            hit_sl = current_price <= stop_loss
+                            price_diff = current_price - entry_price
+                        else:
+                            hit_tp = current_price <= take_profit
+                            hit_sl = current_price >= stop_loss
+                            price_diff = entry_price - current_price
 
                         if hit_tp or hit_sl:
                             result = "TP" if hit_tp else "SL"
-                            price_diff = current_price - entry_price
                             gross_profit_usdt = order['qty_btc'] * price_diff
 
                             if order['order_type'] == 'LIMIT':

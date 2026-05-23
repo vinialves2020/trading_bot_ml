@@ -191,12 +191,13 @@ def main():
 
     features = FeatureEngineer.get_feature_list()
     available_features = [f for f in features if f in df.columns]
-    df_clean = df[available_features + ['target']].dropna()
+    df_clean = df[available_features + ['target', 'target_long', 'target_short']].dropna()
 
     X = df_clean[available_features]
     
     # Ajuste binário para o cálculo de precisão
-    y = (df_clean['target'] == 1).astype(int)
+    y = (df_clean['target_long'] == 1).astype(int)
+    y_short = (df_clean['target_short'] == 1).astype(int)
 
     df['future_return'] = df['close'].pct_change(periods=16).shift(-16)
     y_magnitude = df['future_return']
@@ -245,11 +246,16 @@ def main():
 
     X_final = X.fillna(0)
     y_final = y.fillna(0)
+    y_final_short = y_short.fillna(0)
 
     # Calcular peso correto com base na distribuição final
     neg_final = (y_final == 0).sum()
     pos_final = (y_final == 1).sum()
     final_scale = neg_final / pos_final if pos_final > 0 else 1.0
+    
+    neg_final_short = (y_final_short == 0).sum()
+    pos_final_short = (y_final_short == 1).sum()
+    final_scale_short = neg_final_short / pos_final_short if pos_final_short > 0 else 1.0
 
     # Melhores parametros encontrados pelo Optuna (Trial 14) + scale_pos_weight adaptativo
     best_params = {
@@ -258,13 +264,19 @@ def main():
         'learning_rate': 0.0215,
         'subsample': 0.6869,
         'colsample_bytree': 0.5041,
-        'scale_pos_weight': final_scale,
         'random_state': 42,
         'n_jobs': -1
     }
 
-    final_direction = XGBClassifier(**best_params)
+    best_params_long = best_params.copy()
+    best_params_long['scale_pos_weight'] = final_scale
+    final_direction = XGBClassifier(**best_params_long)
     final_direction.fit(X_final, y_final)
+    
+    best_params_short = best_params.copy()
+    best_params_short['scale_pos_weight'] = final_scale_short
+    final_direction_short = XGBClassifier(**best_params_short)
+    final_direction_short.fit(X_final, y_final_short)
 
     y_magnitude_aligned = y_magnitude.loc[X_final.index]
     
@@ -276,7 +288,11 @@ def main():
 
     direction_path = os.path.join(models_dir, f"xgb_oraculo_{prefix}.json")
     final_direction.save_model(direction_path)
-    print(f" Modelo Direcao salvo: {direction_path}")
+    print(f" Modelo Direcao (LONG) salvo: {direction_path}")
+    
+    direction_path_short = os.path.join(models_dir, f"xgb_oraculo_{prefix}_short.json")
+    final_direction_short.save_model(direction_path_short)
+    print(f" Modelo Direcao (SHORT) salvo: {direction_path_short}")
 
     if final_magnitude:
         magnitude_path = os.path.join(models_dir, f"lgbm_magnitude_{prefix}.txt")
