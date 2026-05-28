@@ -20,9 +20,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 from src.data_pipeline.database import DatabaseManager
 from src.data_pipeline.features import FeatureEngineer
 
-def walk_forward_split(df, n_splits=5, test_size=0.2):
+def walk_forward_split(df, n_splits=5, test_size=0.2, embargo=32):
     """
     Walk-Forward: treina em janelas deslizantes e testa no periodo seguinte.
+    Aplica embargo (gap) entre treino e teste para evitar data leakage de targets futuros.
     Retorna lista de (train_idx, test_idx).
     """
     n = len(df)
@@ -31,7 +32,7 @@ def walk_forward_split(df, n_splits=5, test_size=0.2):
 
     for i in range(n_splits):
         train_end = int(n * (0.2 + i * test_size / n_splits))
-        test_start = train_end
+        test_start = train_end + embargo
         test_end = min(test_start + step, n)
 
         if test_start >= n:
@@ -181,12 +182,14 @@ def main():
     print(f" Periodo: {df.index[0]} a {df.index[-1]}")
 
     if timeframe == '1h':
-        df = FeatureEngineer.create_target(df, horizon=8, profit_target=0.015, stop_loss=0.0075)
+        horizon_val = 8
+        df = FeatureEngineer.create_target(df, horizon=horizon_val, profit_target=0.015, stop_loss=0.0075)
     else:
         # Alvo estático alinhado com o bot_executor para capturar mais oportunidades
-        df = FeatureEngineer.create_target(df, horizon=32, profit_target=0.009, stop_loss=0.0045)
+        horizon_val = 32
+        df = FeatureEngineer.create_target(df, horizon=horizon_val, profit_target=0.009, stop_loss=0.0045)
 
-    print(f"\n Walk-Forward Validation (5 splits)...")
+    print(f"\n Walk-Forward Validation (5 splits com embargo de {horizon_val} velas)...")
     features_list = FeatureEngineer.get_feature_list()
 
     features = FeatureEngineer.get_feature_list()
@@ -202,7 +205,7 @@ def main():
     df['future_return'] = df['close'].pct_change(periods=16).shift(-16)
     y_magnitude = df['future_return']
 
-    splits = walk_forward_split(df, n_splits=5, test_size=0.2)
+    splits = walk_forward_split(df, n_splits=5, test_size=0.2, embargo=horizon_val)
     print(f" Splits gerados: {len(splits)}")
 
     direction_models = []

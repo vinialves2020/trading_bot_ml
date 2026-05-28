@@ -97,7 +97,7 @@ def main():
 
     probabilidades = model.predict_proba(X_test)[:, 1]
 
-    thresholds = [0.50, 0.51, 0.52, 0.53, 0.54, 0.55, 0.57, 0.60]
+    thresholds = [0.50, 0.52, 0.54, 0.56, 0.58, 0.60, 0.62, 0.64, 0.66, 0.68, 0.70]
 
     print("\n--------------------------------------------------------------------------------")
     print("Confiança | Win Rate | Trades  (Acerto/Erro) | EV (Líquido c/ Taxa) ")

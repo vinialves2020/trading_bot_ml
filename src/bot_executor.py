@@ -156,10 +156,9 @@ class TradingBot:
         self.max_risk_per_trade = self.kelly_fraction
         self.max_daily_drawdown = 0.05
 
-        self.daily_start_balance = None
         self.open_order = None
-        self.paper_balance = 100.0
-        self.paper_start_balance = 100.0
+        self.paper_balance = 20.0
+        self.paper_start_balance = 20.0
         self.trade_count = 0
         
         self.order_timestamp = None
@@ -271,15 +270,14 @@ class TradingBot:
         return qty_btc
 
     def _check_daily_drawdown(self):
+        # Desativado reset diario a pedido do usuario, para ter um PnL historico real sem travas
         now = datetime.now(timezone.utc)
         if not hasattr(self, 'last_drawdown_reset') or self.last_drawdown_reset.date() != now.date():
             if self.paper_trading:
-                self.paper_start_balance = self.paper_balance
+                self.paper_start_balance = self.paper_start_balance # Mantem historico
             else:
-                self.daily_start_balance = self._get_account_balance()
+                self.daily_start_balance = self.daily_start_balance # Mantem historico
             self.last_drawdown_reset = now
-            start = self.paper_start_balance if self.paper_trading else self.daily_start_balance
-            print(f" Reset diario do drawdown: ${start:.2f}" if start else " Reset diario do drawdown")
 
         if self.paper_trading:
             current_balance = self.paper_balance
@@ -376,8 +374,11 @@ class TradingBot:
 
                     print(f" {datetime.now(timezone.utc).strftime('%H:%M:%S')} UTC | Preco: ${closed_candle['close']:.2f} | Conf LONG: {prob_long:.2%} | Conf SHORT: {prob_short:.2%}")
 
+                    # Sem Regra Institucional forcada no BTC, usa o threshold global configurado
+                    effective_threshold = self.threshold
+
                     # FinBERT so e acionado se os filtros basicos passarem e a prob base estiver perto do gatilho 
-                    min_prob_needed = self.threshold / 1.15
+                    min_prob_needed = effective_threshold / 1.15
                     if best_prob >= min_prob_needed and adx_value >= 15:
                         valid_macro = (chosen_side == 'LONG' and macro_trend_direction >= 0) or (chosen_side == 'SHORT' and macro_trend_direction <= 0)
                         
@@ -391,18 +392,16 @@ class TradingBot:
                             except Exception as e:
                                 pass
 
-                    if best_prob >= self.threshold and adx_value >= 15:
+                    if best_prob >= effective_threshold and adx_value >= 15:
                         valid_macro = (chosen_side == 'LONG' and macro_trend_direction >= 0) or (chosen_side == 'SHORT' and macro_trend_direction <= 0)
                         if valid_macro:
                             entry_price = closed_candle['close']
                             side = chosen_side
 
-                            if self.timeframe == '1h':
-                                sl_pct = 0.0075
-                                tp_pct = 0.015
-                            else:
-                                sl_pct = 0.0035 # Relaxado (menor risco unitario)
-                                tp_pct = 0.007  # Reduzido (maior frequencia de TP)
+                            # Micro-ATR para SL dinamico
+                            atr_val = closed_candle.get('ATRr_14', entry_price * 0.005) # Fallback 0.5% se der erro no ATR
+                            sl_pct = (atr_val * 1.5) / entry_price
+                            tp_pct = sl_pct * 2.0  # Risco/Retorno 1:2
 
                             if side == 'LONG':
                                 stop_loss = entry_price * (1 - sl_pct)
@@ -464,7 +463,7 @@ class TradingBot:
                             time.sleep(5)
                         else:
                             print(f" 🛑 SINAL IGNORADO: Conflito Macro (Tendencia Oposta ao Sinal).")
-                    elif best_prob >= self.threshold and adx_value < 15:
+                    elif best_prob >= effective_threshold and adx_value < 15:
                         print(f" ⏸️ Mercado lateral (ADX < 15) - Sinal ignorado | Conf: {best_prob:.2%}")
                     else:
                         # Nenhum sinal, apenas espera o próximo candle no próximo loop

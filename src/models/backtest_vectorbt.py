@@ -12,19 +12,32 @@ from src.data_pipeline.features import FeatureEngineer
 from xgboost import XGBClassifier
 import vectorbt as vbt
 
+import argparse
+
 def main():
-    print(" Backtest Profissional - XGBoost BTC/USDT 15m (VectorBT)")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--symbol', type=str, default='BTC/USDT')
+    parser.add_argument('--timeframe', type=str, default='15m')
+    parser.add_argument('--threshold', type=float, default=0.50)
+    args = parser.parse_args()
+    
+    symbol = args.symbol
+    timeframe = args.timeframe
+    threshold = args.threshold
+    prefix = f"{symbol.split('/')[0].lower()}_{timeframe}"
+
+    print(f" Backtest Profissional - XGBoost {symbol} {timeframe} (VectorBT)")
     print("=" * 60)
 
     # 1. Carregar dados do banco
     db = DatabaseManager('data/trading_data.db')
 
     # Tenta carregar dados com features
-    df = db.load_data('btc_15m_master')
+    df = db.load_data(f'{prefix}_master')
     if df is None:
-        df = db.load_data('btc_15m_features')
+        df = db.load_data(f'{prefix}_features')
     if df is None:
-        df = db.load_data('btc_15m_ml_dataset')
+        df = db.load_data(f'{prefix}_ml_dataset')
 
     if df is None or len(df) == 0:
         print(" Erro: Sem dados no banco. Execute o fetcher primeiro.")
@@ -35,7 +48,7 @@ def main():
 
     # 2. Carregar modelo XGBoost
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-    model_path = os.path.join(base_path, "data", "models_weights", "xgb_oraculo_btc.json")
+    model_path = os.path.join(base_path, "data", "models_weights", f"xgb_oraculo_{prefix}.json")
 
     if not os.path.exists(model_path):
         print(f" Modelo nao encontrado em: {model_path}")
@@ -61,8 +74,8 @@ def main():
 
     # Predicao
     prob = model.predict_proba(X_test)[:, 1]  # Probabilidade de alta
-    threshold = 0.50
-    signals = (prob >= threshold).astype(int)
+    signals_arr = (prob >= threshold).astype(int)
+    signals = pd.Series(signals_arr, index=df_test.index)
 
     # Para scalping: 1 = LONG, 0 = NEUTRO
     entries = (signals == 1) & (signals.shift(1) == 0)
@@ -82,10 +95,10 @@ def main():
         entries=entries.values,
         exits=exits.values,
         fees=0.001,  # Taxa Binance 0.1%
-        init_cash=10000.0,
-        size=0.02,  # 2% do capital por trade (prompt.md)
+        init_cash=20.0,
+        size=0.25,  # 25% (Fractional Kelly)
         size_type='percent',
-        freq='15T'
+        freq=f"{timeframe.upper().replace('M', 'T')}"
     )
 
     # 6. Metricas de Performance (prompt.md linha 22)
@@ -105,7 +118,7 @@ def main():
 
     # Trades (VectorBT: usar records para acesso seguro)
     trades = portfolio.trades
-    if trades.count > 0:
+    if trades.count() > 0:
         # Extrair records como DataFrame/array
         records = trades.records
 
@@ -142,16 +155,16 @@ def main():
             'end': str(df_test.index[-1]),
             'candles': len(df_test)
         },
-        'model': 'xgb_oraculo_btc.json',
+        'model': f'xgb_oraculo_{prefix}.json',
         'threshold': threshold,
         'metrics': {
             'total_return_pct': float(total_return * 100),
             'sharpe_ratio': float(sharpe),
             'sortino_ratio': float(sortino),
             'max_drawdown_pct': float(max_dd * 100),
-            'total_trades': int(len(trades)) if len(trades) > 0 else 0,
-            'win_rate_pct': float(win_rate) if len(trades) > 0 else 0,
-            'profit_factor': float(profit_factor) if len(trades) > 0 else 0
+            'total_trades': int(trades.count()) if trades.count() > 0 else 0,
+            'win_rate_pct': float(win_rate) if trades.count() > 0 else 0,
+            'profit_factor': float(profit_factor) if trades.count() > 0 else 0
         },
         'walk_forward': {
             'train_period': f"{df.index[0]} to {df.index[split_idx]}",
