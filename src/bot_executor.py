@@ -157,8 +157,8 @@ class TradingBot:
         self.max_daily_drawdown = 0.05
 
         self.open_order = None
-        self.paper_balance = 20.0
-        self.paper_start_balance = 20.0
+        self.paper_balance = 500.0
+        self.paper_start_balance = 500.0
         self.trade_count = 0
         
         self.order_timestamp = None
@@ -259,10 +259,21 @@ class TradingBot:
     def _calculate_position_size(self, entry_price, stop_loss_price):
         if self.paper_trading:
             balance = self.paper_balance
+            start_balance = self.paper_start_balance
         else:
             balance = self._get_account_balance() or 10000.0
+            start_balance = getattr(self, 'daily_start_balance', balance)
 
-        risk_amount = balance * self.max_risk_per_trade
+        # Dynamic Kelly (Defensive Play - Agente CRO)
+        drawdown = (balance - start_balance) / start_balance if start_balance > 0 else 0
+        current_kelly = self.max_risk_per_trade
+        if drawdown < 0:
+            penalty = 1 + (drawdown * 10)  # Ex: -5% DD = corta Kelly na metade
+            penalty = max(0.1, penalty)
+            current_kelly *= penalty
+            print(f" 📉 CRO Ativo: Drawdown de {drawdown*100:.2f}% detectado. Kelly ajustado para {current_kelly*100:.2f}%")
+
+        risk_amount = balance * current_kelly
         price_risk = abs(entry_price - stop_loss_price)
         if price_risk == 0:
             return 0.0
@@ -394,13 +405,25 @@ class TradingBot:
 
                     if best_prob >= effective_threshold and adx_value >= 15:
                         valid_macro = (chosen_side == 'LONG' and macro_trend_direction >= 0) or (chosen_side == 'SHORT' and macro_trend_direction <= 0)
-                        if valid_macro:
+                        
+                        # Filtro de Repique (Defensive Play)
+                        rsi_val = closed_candle.get('RSI_14', 50)
+                        bounce_filter_passed = True
+                        if chosen_side == 'SHORT' and rsi_val < 35:
+                            bounce_filter_passed = False
+                            print(f" 🛑 SINAL IGNORADO: Filtro de Repique (RSI {rsi_val:.1f} em sobrevenda, perigoso para SHORT).")
+                        elif chosen_side == 'LONG' and rsi_val > 65:
+                            bounce_filter_passed = False
+                            print(f" 🛑 SINAL IGNORADO: Filtro de Repique (RSI {rsi_val:.1f} em sobrecompra, perigoso para LONG).")
+
+                        if valid_macro and bounce_filter_passed:
                             entry_price = closed_candle['close']
                             side = chosen_side
 
-                            # Micro-ATR para SL dinamico
+                            # Micro-ATR para SL dinamico adaptado por moeda
                             atr_val = closed_candle.get('ATRr_14', entry_price * 0.005) # Fallback 0.5% se der erro no ATR
-                            sl_pct = (atr_val * 1.5) / entry_price
+                            sl_mult = 2.5 if 'SOL' in self.symbol else 1.5 # Solana exige Stop mais folgado devido a volatilidade
+                            sl_pct = (atr_val * sl_mult) / entry_price
                             tp_pct = sl_pct * 2.0  # Risco/Retorno 1:2
 
                             if side == 'LONG':
