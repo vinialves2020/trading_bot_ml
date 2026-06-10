@@ -398,7 +398,14 @@ class TradingBot:
                                 print(f" 🤖 Confianca na zona de gatilho ({best_prob:.2%}). Invocando FinBERT...")
                                 score_sent = self._get_sentiment()
                                 multiplier = score_sent if chosen_side == 'LONG' else -score_sent
-                                best_prob = best_prob * (1 + 0.15 * multiplier)
+                                
+                                # Reduz peso do FinBERT para ETH (Prioridade On-Chain)
+                                if 'ETH' in self.symbol:
+                                    best_prob = best_prob * (1 + 0.05 * multiplier)
+                                    print(f" ⚠️ FinBERT peso reduzido p/ ETH (On-Chain priority).")
+                                else:
+                                    best_prob = best_prob * (1 + 0.15 * multiplier)
+                                    
                                 print(f" Confianca ajustada (c/ FinBERT): {best_prob:.2%}")
                             except Exception as e:
                                 pass
@@ -422,7 +429,17 @@ class TradingBot:
 
                             # Micro-ATR para SL dinamico adaptado por moeda
                             atr_val = closed_candle.get('ATRr_14', entry_price * 0.005) # Fallback 0.5% se der erro no ATR
-                            sl_mult = 2.5 if 'SOL' in self.symbol else 1.5 # Solana exige Stop mais folgado devido a volatilidade
+                            atr_pct = atr_val / entry_price
+                            
+                            # Logica DVOL/Volatilidade Dinamica para BTC
+                            if 'SOL' in self.symbol:
+                                sl_mult = 2.5 # Solana exige Stop mais folgado
+                            elif 'BTC' in self.symbol and atr_pct > 0.0045: # Alta volatilidade no BTC (ex: pos-crash)
+                                sl_mult = 2.5 # Alarga o SL matematicamente para evitar violino
+                                print(f" ⚠️ Volatilidade Extrema no BTC detectada (ATR > 0.45%). Stop Loss alargado.")
+                            else:
+                                sl_mult = 1.5
+                                
                             sl_pct = (atr_val * sl_mult) / entry_price
                             tp_pct = sl_pct * 2.0  # Risco/Retorno 1:2
 
